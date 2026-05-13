@@ -1,0 +1,20 @@
+{
+  "recheck_rules": {
+    "sinapi_like": {
+      "min_description_patch_score": 8.0,
+      "pollution_veto_terms": [
+        "Custo Total das Atividades",
+        "Valor com BDI",
+        "Valor do BDI",
+        "MO sem LS",
+        "Material Material",
+        "=>"
+      ],
+      "evidence_graph_enabled": true,
+      "selective_profile_reparse_enabled": true,
+      "hypothesis_engine_enabled": true,
+      "min_graph_patch_score": 3.0,
+      "negative_evidence_lock_enabled": true
+    }
+  }
+}

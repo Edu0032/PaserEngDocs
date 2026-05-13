@@ -1,0 +1,4 @@
+pydantic
+pypdf
+pytest
+httpx

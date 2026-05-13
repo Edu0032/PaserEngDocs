@@ -1,0 +1,20 @@
+{
+  "knowledge_base": {
+    "units": [
+      {
+        "canonical": "M3XKM",
+        "aliases": [
+          "M3XKM",
+          "m3xkm",
+          "M³XKM",
+          "m³xkm",
+          "M 3 XKM"
+        ],
+        "families": [
+          "all"
+        ],
+        "regex": "^(?:M3XKM|m3xkm|M³XKM|m³xkm|M\\s*3\\s*XKM)$"
+      }
+    ]
+  }
+}

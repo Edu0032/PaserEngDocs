@@ -1,0 +1,27 @@
+{
+  "user_base_config_contract": {
+    "version": "v61.0.35-candidate-profile-consensus-engine",
+    "enabled": true,
+    "merge_strategy": "deep_merge_admin_then_user",
+    "admin_only_sections": [
+      "quality_gate",
+      "recheck_rules",
+      "runtime",
+      "docling_cache_policy",
+      "code_patterns_global",
+      "sicro_output_contract"
+    ],
+    "user_editable_sections": [
+      "custom_bank_profiles.profiles",
+      "knowledge_base.header_aliases.user",
+      "knowledge_base.units.user_suggestions"
+    ],
+    "custom_table_builder": {
+      "enabled": true,
+      "ui_mode": "spreadsheet_like_grid",
+      "required_column_fields": ["header", "canonical"],
+      "supported_families": ["sinapi_like", "sectioned", "budget_like"],
+      "parser_consumption": "merged_base_config_before_parse"
+    }
+  }
+}

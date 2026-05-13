@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API PDF Parser — v61.0.35-candidate-profile-consensus-engine</title>
+<style>
+:root { color-scheme: light dark; --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#38bdf8; --border:#334155; --ok:#86efac; --warn:#fde68a; --err:#fca5a5; }
+body { margin:0; font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--text); }
+header { padding:18px 22px; border-bottom:1px solid var(--border); background:#020617; }
+h1 { margin:0; font-size:20px; } .sub { color:var(--muted); margin-top:4px; font-size:13px; line-height:1.45; }
+main { display:grid; grid-template-columns:minmax(380px,540px) 1fr; gap:16px; padding:16px; }
+.panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; }
+label { display:block; font-size:13px; margin:8px 0 4px; color:#cbd5e1; }
+input, select, textarea { width:100%; box-sizing:border-box; border:1px solid var(--border); background:#020617; color:var(--text); border-radius:8px; padding:8px; }
+textarea { min-height:360px; font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+button { border:0; border-radius:10px; padding:10px 12px; cursor:pointer; background:var(--accent); color:#00111f; font-weight:700; }
+button.secondary { background:#1e293b; color:#e2e8f0; border:1px solid var(--border); }
+button.danger { background:#fb7185; color:#160006; } button:disabled { opacity:.55; cursor:not-allowed; }
+pre { white-space:pre-wrap; word-break:break-word; background:#020617; border:1px solid var(--border); border-radius:10px; padding:10px; min-height:160px; max-height:70vh; overflow:auto; }
+.tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; } .tab-btn.active { outline:2px solid var(--accent); } .hidden { display:none; }
+.hint { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.45; } .ok { color:var(--ok); } .warn { color:var(--warn); } .err { color:var(--err); }
+.badge { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size:12px; color:#cbd5e1; margin-left:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>API PDF Parser — v61.0.35-candidate-profile-consensus-engine</h1>
+  <div class="sub">HTML local unificado. Os botões principais usam <b>Pyodide/worker</b>: o PDF completo fica no navegador, o worker gera <b>docling-seed-pages.pdf</b> e esse mini-PDF é enviado para a API Docling e depois para a API Normalizer. Este HTML não chama <code>/simulate/lovable-flow</code>.</div>
+</header>
+<main>
+<section class="panel">
+  <div class="grid2">
+    <label>PDF<input id="pdfFile" type="file" accept="application/pdf"></label>
+    <label>Modo Docling<select id="apiMode"><option value="local" selected>Local HTTP</option><option value="real">API real/Render</option><option value="relative">Mesmo servidor/relativo</option></select></label>
+  </div>
+  <label>Endpoint Docling<input id="doclingEndpoint" value="http://127.0.0.1:8000/docling/extract-table-structure"></label>
+  <label>Endpoint Normalizer opcional (somente modo API)<input id="normalizerEndpoint" value=""></label>
+  <div class="grid3">
+    <label>API key<input id="doclingApiKey" placeholder="opcional"></label>
+    <label>Header<input id="doclingApiKeyHeader" value="x-api-key"></label>
+    <label>Timeout Docling ms<input id="doclingTimeoutMs" type="number" value="120000"></label>
+  </div>
+  <div class="row" style="margin:8px 0 4px">
+    <label style="display:flex;gap:8px;align-items:center;margin:0"><input id="bypassDoclingCache" type="checkbox" style="width:auto"> Ignorar cache Docling nesta execução</label>
+    <label style="display:flex;gap:8px;align-items:center;margin:0"><input id="clearDoclingCache" type="checkbox" style="width:auto"> Limpar cache antes do teste</label>
+  </div>
+  <div class="grid2">
+    <label>Budget seed<input id="budgetSeed" type="number" value="2"></label>
+    <label>Composition seed<input id="compositionSeed" type="number" value="9"></label>
+    <label>Budget início<input id="budgetStart" type="number" value="2"></label>
+    <label>Budget fim<input id="budgetEnd" type="number" value="4"></label>
+    <label>Comp. início<input id="compStart" type="number" value="9"></label>
+    <label>Comp. fim<input id="compEnd" type="number" value="139"></label>
+  </div>
+  <div class="row" style="margin:10px 0">
+    <button id="applyFieldsBtn" type="button" class="secondary">Aplicar campos no payload</button>
+    <button id="validatePayloadBtn" type="button" class="secondary">Validar payload</button>
+    <button id="apiOnlyBtn" type="button" class="secondary">Testar Docling + Normalizer com seed</button>
+    <button id="runBtn" type="button">Executar fluxo completo browser</button>
+    <button id="resetBtn" type="button" class="danger">Resetar worker</button>
+  </div>
+  <details open><summary>Payload Lovable/API preservado <span class="badge">samples por coluna</span></summary>
+    <div class="hint">O payload mantém <b>tables.observed_headers</b>, canônicos, <b>fixed_contract</b>, políticas Docling/crop/merge e agora inclui <b>sample_text/content_text/first_row_text</b> para orientar o normalizador quando o Docling funde ou perde colunas.</div>
+    <textarea id="payloadJson"></textarea>
+  </details>
+  <div class="hint" id="summaryLine">Aguardando arquivo.</div>
+  <pre id="statusLog"></pre>
+</section>
+<section class="panel">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="preview">Preview orçamento</button>
+    <button class="tab-btn" data-tab="final">JSON final</button>
+    <button class="tab-btn" data-tab="correction">Correção</button>
+    <button class="tab-btn" data-tab="docling">Docling/seed</button>
+    <button class="tab-btn" data-tab="payload">Payload usado</button>
+    <button class="tab-btn" data-tab="budget">Budget stage</button>
+    <button class="tab-btn" data-tab="compositions">Compositions stage</button>
+    <button class="tab-btn" data-tab="accuracy">Acurácia</button>
+    <button class="tab-btn" data-tab="reparse">Reparse seletivo</button>
+    <button class="tab-btn" data-tab="consensus">Consenso de perfis</button>
+    <button class="tab-btn" data-tab="debug">Debug overlay</button>
+  </div>
+  <div class="row" style="margin-bottom:10px"><button id="copyCurrentBtn" class="secondary" type="button">Copiar aba</button><button id="downloadCurrentBtn" class="secondary" type="button">Baixar aba</button></div>
+  <div id="tab-preview"><pre id="previewOut"></pre></div>
+  <div id="tab-final" class="hidden"><pre id="finalOut"></pre></div>
+  <div id="tab-correction" class="hidden"><pre id="correctionOut"></pre></div>
+  <div id="tab-docling" class="hidden"><pre id="doclingOut"></pre></div>
+  <div id="tab-payload" class="hidden"><pre id="payloadOut"></pre></div>
+  <div id="tab-budget" class="hidden"><pre id="budgetOut"></pre></div>
+  <div id="tab-compositions" class="hidden"><pre id="compositionsOut"></pre></div>
+  <div id="tab-accuracy" class="hidden"><pre id="accuracyOut"></pre></div>
+  <div id="tab-reparse" class="hidden"><pre id="reparseOut"></pre></div>
+  <div id="tab-consensus" class="hidden"><pre id="consensusOut"></pre></div>
+  <div id="tab-debug" class="hidden"><pre id="debugOut"></pre></div>
+</section>
+</main>
+<script type="module">
+const RELEASE = "v61.0.35-candidate-profile-consensus-engine";
+const DEFAULT_PAYLOAD = {
+  "version": "v61.0.35-candidate-profile-consensus-engine",
+  "document": {
+    "filename": "",
+    "page_count": 148,
+    "title": "Construção da casa do produtor em Sena Madureira/AC"
+  },
+  "ranges": {
+    "budget": {
+      "start": 2,
+      "end": 4
+    },
+    "compositions": {
+      "start": 9,
+      "end": 139
+    }
+  },
+  "docling_seed_pages": {
+    "budget": 2,
+    "composition": 9
+  },
+  "docling_api_url": "http://127.0.0.1:8000/docling/extract-table-structure",
+  "docling_api_key": "",
+  "docling_api_key_header": "x-api-key",
+  "docling_timeout_ms": 120000,
+  "normalizer_timeout_ms": 90000,
+  "normalizer_enabled": true,
+  "normalizer_mode": "local_pyodide",
+  "docling_seed_pdf_policy": {
+    "enabled": true,
+    "extract_in_pyodide": true,
+    "send_full_pdf_to_docling": false,
+    "allow_full_pdf_fallback": false,
+    "preserve_full_page": true,
+    "deduplicate_pages": true
+  },
+  "ai_profile_name": "deracre_exemplo_v61_0_9_payload_organizado",
+  "tables": {
+    "budget": {
+      "header_rows_observed": 2,
+      "multiline_header": true,
+      "physical_column_count_expected": 10,
+      "logical_column_count_expected": 10,
+      "domain_column_count_expected": 10,
+      "table_parent_header": {
+        "text": "ANEXO 1 - ORÇAMENTO SINTÉTICO",
+        "role": "table_title",
+        "action": "exclude_from_column_headers",
+        "canonical": "budget_table_title"
+      },
+      "non_column_context": [
+        "Sena Madureira/AC",
+        "Rodovia BR 364",
+        "28/05/2025"
+      ],
+      "observed_headers": [
+        {
+          "text": "ITEM",
+          "canonical": "item_agregador",
+          "type": "column",
+          "header_text": "ITEM",
+          "sample_text": "1.1.1",
+          "content_text": "1.1.1",
+          "first_row_text": "1.1.1"
+        },
+        {
+          "text": "CÓDIGO",
+          "canonical": "codigo",
+          "type": "column",
+          "header_text": "CÓDIGO",
+          "sample_text": "74209/001",
+          "content_text": "74209/001",
+          "first_row_text": "74209/001"
+        },
+        {
+          "text": "FONTE",
+          "canonical": "fonte",
+          "type": "column",
+          "header_text": "FONTE",
+          "sample_text": "SINAPI",
+          "content_text": "SINAPI",
+          "first_row_text": "SINAPI"
+        },
+        {
+          "text": "ESPECIFICAÇÕES DOS SERVIÇOS",
+          "canonical": "descricao",
+          "type": "column",
+          "header_text": "ESPECIFICAÇÕES DOS SERVIÇOS",
+          "sample_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO",
+          "content_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO",
+          "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"
+        },
+        {
+          "text": "UND",
+          "canonical": "und",
+          "type": "column",
+          "header_text": "UND",
+          "sample_text": "m²",
+          "content_text": "m²",
+          "first_row_text": "m²"
+        },
+        {
+          "text": "QUANT.",
+          "canonical": "quant",
+          "type": "column",
+          "header_text": "QUANT.",
+          "sample_text": "6,00",
+          "content_text": "6,00",
+          "first_row_text": "6,00"
+        },
+        {
+          "text": "S/ B.D.I",
+          "canonical": "custo_unitario_sem_bdi",
+          "type": "column",
+          "group": "custo_unitario",
+          "header_text": "S/ B.D.I",
+          "sample_text": "521,39",
+          "content_text": "521,39",
+          "first_row_text": "521,39"
+        },
+        {
+          "text": "C/ B.D.I",
+          "canonical": "custo_unitario_com_bdi",
+          "type": "column",
+          "group": "custo_unitario",
+          "header_text": "C/ B.D.I",
+          "sample_text": "634,16",
+          "content_text": "634,16",
+          "first_row_text": "634,16"
+        },
+        {
+          "text": "CUSTO PARCIAL",
+          "canonical": "custo_parcial",
+          "type": "column",
+          "header_text": "CUSTO PARCIAL",
+          "sample_text": "3.804,96",
+          "content_text": "3.804,96",
+          "first_row_text": "3.804,96"
+        },
+        {
+          "text": "CUSTO TOTAL",
+          "canonical": "custo_total",
+          "type": "column",
+          "header_text": "CUSTO TOTAL",
+          "sample_text": "52.365,69",
+          "content_text": "52.365,69",
+          "first_row_text": "52.365,69"
+        }
+      ],
+      "header_groups": [
+        {
+          "text": "CUSTO UNITÁRIO",
+          "canonical": "custo_unitario",
+          "role": "group_parent",
+          "children": [
+            "custo_unitario_sem_bdi",
+            "custo_unitario_com_bdi"
+          ],
+          "children_texts": [
+            "S/ B.D.I",
+            "C/ B.D.I"
+          ]
+        }
+      ],
+      "header_noise_terms": [
+        "DERACRE Página"
+      ],
+      "body_stop_markers_legacy": [
+        "1 SERVIÇOS PRELIMINARES",
+        "1.1 PLACA DE OBRA",
+        "74209/001",
+        "93207",
+        "SINAPI",
+        "Próprio"
+      ]
+    },
+    "composition": {
+      "header_rows_observed": 1,
+      "multiline_header": false,
+      "physical_column_count_expected": 9,
+      "logical_column_count_expected": 9,
+      "domain_column_count_expected": 8,
+      "table_parent_header": {
+        "texts": [
+          "Composições Analíticas com Preço Unitário",
+          "Composições Principais"
+        ],
+        "role": "table_title",
+        "action": "exclude_from_column_headers",
+        "canonical": "composition_table_title"
+      },
+      "non_column_context": [
+        "Construção da casa do produtor em Sena Madureira /AC",
+        "Bancos",
+        "SINAPI - 04/2025 - Acre",
+        "B.D.I.",
+        "21,63%",
+        "Encargos Sociais",
+        "Não Desonerado:"
+      ],
+      "observed_headers": [
+        {
+          "text": "1.1",
+          "canonical": "controle_linha",
+          "type": "control_column",
+          "role": "control_column",
+          "sample_text": "Composição",
+          "header_text": "1.1",
+          "content_text": "Composição",
+          "first_row_text": "Composição"
+        },
+        {
+          "text": "Código",
+          "canonical": "codigo",
+          "type": "column",
+          "sample_text": "74209/001",
+          "header_text": "Código",
+          "content_text": "74209/001",
+          "first_row_text": "74209/001"
+        },
+        {
+          "text": "Banco",
+          "canonical": "banco",
+          "type": "column",
+          "sample_text": "SINAPI",
+          "header_text": "Banco",
+          "content_text": "SINAPI",
+          "first_row_text": "SINAPI"
+        },
+        {
+          "text": "Descrição",
+          "canonical": "descricao",
+          "type": "column",
+          "sample_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO",
+          "header_text": "Descrição",
+          "content_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO",
+          "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"
+        },
+        {
+          "text": "Tipo",
+          "canonical": "tipo",
+          "type": "column",
+          "ignore_in_domain": true,
+          "sample_text": "",
+          "header_text": "Tipo",
+          "content_text": "",
+          "first_row_text": ""
+        },
+        {
+          "text": "Und",
+          "canonical": "und",
+          "type": "column",
+          "sample_text": "%",
+          "header_text": "Und",
+          "content_text": "%",
+          "first_row_text": "%"
+        },
+        {
+          "text": "Quant.",
+          "canonical": "quant",
+          "type": "column",
+          "sample_text": "1,0000000",
+          "header_text": "Quant.",
+          "content_text": "1,0000000",
+          "first_row_text": "1,0000000"
+        },
+        {
+          "text": "Valor Unit",
+          "canonical": "valor_unit",
+          "type": "column",
+          "sample_text": "370,66",
+          "header_text": "Valor Unit",
+          "content_text": "370,66",
+          "first_row_text": "370,66"
+        },
+        {
+          "text": "Total",
+          "canonical": "total",
+          "type": "column",
+          "sample_text": "370,66",
+          "header_text": "Total",
+          "content_text": "370,66",
+          "first_row_text": "370,66"
+        }
+      ],
+      "header_noise_terms": [
+        "MO sem LS",
+        "Valor do BDI",
+        "Valor com BDI",
+        "LS =>"
+      ],
+      "body_stop_markers_legacy": [
+        "Composição",
+        "Composição Auxiliar",
+        "Insumo",
+        "MO sem LS",
+        "Valor do BDI"
+      ],
+      "control_column": {
+        "canonical": "controle_linha",
+        "semantic_label": "COLUNA DE CONTROLE",
+        "observed_markers": [
+          "1.1",
+          "1.2.1",
+          "Composição",
+          "Composição Auxiliar",
+          "Insumo"
+        ]
+      }
+    }
+  },
+  "fixed_contract": {
+    "runtime_profile": "browser_robust",
+    "ocr_enabled": false,
+    "header_window_policy": {
+      "budget": {
+        "max_header_lines": 2,
+        "max_vertical_gap": 1.4,
+        "allow_multiline_header": true,
+        "stop_on_first_body_marker": true
+      },
+      "composition": {
+        "max_header_lines": 2,
+        "max_vertical_gap": 1.2,
+        "allow_multiline_header": true,
+        "stop_on_first_body_marker": true
+      }
+    },
+    "crop_policy": {
+      "budget": {
+        "mode": "line_window",
+        "lines_above": 1,
+        "lines_below": 4,
+        "min_vertical_padding": 6.0,
+        "horizontal_padding": 20.0,
+        "allow_group_completion_expansion": false,
+        "max_extra_lines": 0,
+        "only_if_missing_group_children": true
+      },
+      "composition": {
+        "mode": "line_window",
+        "lines_above": 1,
+        "lines_below": 4,
+        "min_vertical_padding": 6.0,
+        "horizontal_padding": 20.0,
+        "allow_group_completion_expansion": false,
+        "max_extra_lines": 0,
+        "only_if_missing_group_children": true
+      }
+    },
+    "template_merge_policy": {
+      "enabled": true,
+      "allow_merge_before_fallback": true,
+      "min_complementary_gain": 1,
+      "require_same_kind": true,
+      "require_same_original_page": true,
+      "max_candidates_to_consider": 4
+    },
+    "docling_execution_policy": {
+      "always_run": true,
+      "required_as_primary": true,
+      "fallback_role": "diagnostic_only",
+      "max_docling_attempts": 2,
+      "force_docling_only": false,
+      "allow_fallback": true
+    },
+    "geometry_normalizer": {
+      "enabled": true,
+      "mode": "guarded_lite",
+      "max_body_rows": 6,
+      "max_words": 500,
+      "only_if_needed": true,
+      "debug_raw_geometry": false,
+      "normalize_scope": "problem_regions_only",
+      "preserve_docling_geometry_by_default": true,
+      "revert_if_sample_validation_fails": true
+    }
+  },
+  "ai_hints": {
+    "header_footer_profile": {
+      "recurring_headers": [
+        "ESTADO DO ACRE",
+        "DEPARTAMENTO DE ESTRADAS DE RODAGEM, INFRAESTRUTURA HIDROVIÁRIA E AEROPORTUÁRIA DO ACRE – DERACRE",
+        "Objeto: Construção da casa do produtor em Sena Madureira/AC",
+        "PARÂMETROS SICRO SINAPI",
+        "Convênio:",
+        "Município:",
+        "Endereço:",
+        "Data:",
+        "BDI de Serviços:",
+        "BDI Diferenciado:",
+        "Enc. Sociais SEM Desoneração:"
+      ],
+      "recurring_footers": [
+        "DERACRE Página",
+        "Rio Branco - Acre",
+        "28/05/2025",
+        "Revisão do Orçamento"
+      ],
+      "budget_headers": [
+        "ANEXO 1 - ORÇAMENTO SINTÉTICO",
+        "ITEM CÓDIGO FONTE ESPECIFICAÇÕES DOS SERVIÇOS UND QUANT.",
+        "CUSTO UNITÁRIO CUSTO PARCIAL CUSTO TOTAL",
+        "S/ B.D.I C/ B.D.I"
+      ],
+      "budget_footers": [
+        "TOTAL SEM BDI",
+        "TOTAL COM BDI",
+        "O VALOR DO PRESENTE ORÇAMENTO É:"
+      ],
+      "composition_headers": [
+        "Composições Analíticas com Preço Unitário",
+        "Composições Principais",
+        "1.1 Código Banco Descrição Und Quant. Valor Unit Total",
+        "Código Banco Descrição Tipo Und Quant. Valor Unit Total"
+      ],
+      "composition_footers": [
+        "MO sem LS",
+        "LS =>",
+        "MO com LS",
+        "Valor do BDI",
+        "Valor com BDI"
+      ]
+    },
+    "noise_profile": {
+      "mode": "declared_by_ai",
+      "remove_headers_and_footers": true,
+      "remove_only_when_outside_column_bands": true,
+      "keep_raw_only_in_debug": true
+    },
+    "continuation_policy": {
+      "budget": {
+        "text_columns": [
+          "descricao"
+        ],
+        "numeric_columns": [
+          "quant"
+        ],
+        "money_columns": [
+          "custo_unitario_sem_bdi",
+          "custo_unitario_com_bdi",
+          "custo_parcial",
+          "custo_total"
+        ],
+        "unit_columns": [
+          "und"
+        ],
+        "strict_columns": [
+          "item_agregador",
+          "codigo",
+          "fonte"
+        ]
+      },
+      "composition": {
+        "text_columns": [
+          "descricao",
+          "tipo"
+        ],
+        "numeric_columns": [
+          "quant"
+        ],
+        "money_columns": [
+          "valor_unit",
+          "total"
+        ],
+        "unit_columns": [
+          "und"
+        ],
+        "strict_columns": [
+          "controle_linha",
+          "codigo",
+          "banco"
+        ]
+      }
+    },
+    "section_map": {
+      "budget": {
+        "start": 2,
+        "end": 4,
+        "title": "ANEXO 1 - ORÇAMENTO SINTÉTICO"
+      },
+      "compositions": {
+        "start": 9,
+        "end": 139,
+        "title": "Composições Analíticas com Preço Unitário"
+      }
+    },
+    "page_family_hints": {
+      "budget_family": "budget",
+      "compositions_family": "sinapi_like"
+    },
+    "table_hints": {},
+    "docling_guidance": {},
+    "selection_policy": {},
+    "anomalies": [],
+    "extra": {}
+  },
+  "runtime": {
+    "mode": "browser_only",
+    "strict_validation": false,
+    "profile": "browser_robust"
+  },
+  "performance": {
+    "profile": "browser_robust",
+    "composition_text_fallback_mode": "smart"
+  },
+  "output_options": {
+    "include_tipo_in_final_json": false,
+    "include_summary_rows_raw": true,
+    "include_control_line_debug": false,
+    "include_docling_page_map": true
+  },
+  "base_id": "misto",
+  "parser_contract": {
+    "contract_version": "v61.0.35-candidate-profile-consensus-engine",
+    "docling_clean_payload_field": "docling_clean_payload",
+    "tables_contract_field": "tables",
+    "use_top_level_tables_as_table_hints": true,
+    "docling_is_primary_structure_source": true,
+    "preserve_ignored_columns_for_geometry": true,
+    "effective_bounds_rule": "x0_to_next_physical_x0"
+  },
+  "request_timeout_ms": 600000
+};
+const isFastApiStatic = location.pathname === '/simulator' || location.pathname.startsWith('/static/');
+const isDemoSubpath = location.pathname.includes('/demo/');
+const assetBase = isFastApiStatic ? '/static/' : (isDemoSubpath ? '../pyodide/' : './pyodide/');
+const moduleUrl = isFastApiStatic ? '/static/api-pdf-browser.js' : './api-pdf-browser.js';
+const { ApiPdfBrowserClient, createDownload } = await import(moduleUrl);
+const $ = (id) => document.getElementById(id);
+const outputs = { preview: $('previewOut'), final: $('finalOut'), correction: $('correctionOut'), docling: $('doclingOut'), payload: $('payloadOut'), budget: $('budgetOut'), compositions: $('compositionsOut'), accuracy: $('accuracyOut'), reparse: $('reparseOut'), consensus: $('consensusOut'), debug: $('debugOut') };
+let currentTab = 'preview';
+let client = null;
+let artifacts = {};
+function now() { return new Date().toLocaleTimeString('pt-BR', { hour12:false }); }
+function log(message, cls='') { const line = `[${now()}] ${message}`; const el=$('statusLog'); el.innerHTML += cls ? `<span class="${cls}">${escapeHtml(line)}</span>
+` : `${escapeHtml(line)}
+`; el.scrollTop = el.scrollHeight; }
+function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function render(out, value) { out.textContent = typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2); }
+function setTab(name) { currentTab=name; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); Object.keys(outputs).forEach(k=> $('tab-'+k).classList.toggle('hidden', k!==name)); }
+document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+function clonePayload() { return JSON.parse(JSON.stringify(DEFAULT_PAYLOAD)); }
+function applyFields(payload) {
+  const file = $('pdfFile').files[0];
+  payload.version = RELEASE;
+  payload.filename = file?.name || payload.filename || '';
+  payload.content_type = file?.type || payload.content_type || 'application/pdf';
+  payload.document = { ...(payload.document || {}), filename: file?.name || payload.document?.filename || '', page_count: Number(payload.document?.page_count || 148) };
+  payload.ranges = { budget: { start: Number($('budgetStart').value), end: Number($('budgetEnd').value) }, compositions: { start: Number($('compStart').value), end: Number($('compEnd').value) } };
+  payload.docling_seed_pages = { budget: Number($('budgetSeed').value), composition: Number($('compositionSeed').value) };
+  payload.docling_api_url = $('doclingEndpoint').value.trim();
+  payload.docling_api_key = $('doclingApiKey').value.trim();
+  payload.docling_api_key_header = $('doclingApiKeyHeader').value.trim() || 'x-api-key';
+  payload.docling_timeout_ms = Number($('doclingTimeoutMs').value || 120000);
+  payload.bypass_cache = !!$('bypassDoclingCache').checked;
+  payload.clear_docling_cache_before_run = !!$('clearDoclingCache').checked;
+  payload.normalizer_timeout_ms = 90000;
+  payload.normalizer_enabled = true;
+  payload.normalizer_mode = 'local_pyodide';
+  payload.docling_seed_pdf_policy = { enabled:true, extract_in_pyodide:true, send_full_pdf_to_docling:false, allow_full_pdf_fallback:false, preserve_full_page:true, deduplicate_pages:true, ...(payload.docling_seed_pdf_policy || {}) };
+  payload.docling_seed_pdf_policy.send_full_pdf_to_docling = false;
+  payload.docling_seed_pdf_policy.allow_full_pdf_fallback = false;
+  payload.performance = { profile:'browser_robust', composition_text_fallback_mode:'smart', ...(payload.performance || {}) };
+  payload.output_options = { include_tipo_in_final_json:false, include_summary_rows_raw:true, include_control_line_debug:false, include_docling_page_map:true, ...(payload.output_options || {}) };
+  payload.parser_contract = { ...(payload.parser_contract || {}), contract_version: RELEASE, docling_is_primary_structure_source:true, preserve_ignored_columns_for_geometry:true, use_top_level_tables_as_table_hints:true, normalizer_is_refinement_source:true, process_only_anomalies:true, lock_good_columns:true };
+  return payload;
+}
+function readPayload() { return applyFields(JSON.parse($('payloadJson').value)); }
+function writePayload(payload) { $('payloadJson').value = JSON.stringify(applyFields(payload), null, 2); render(outputs.payload, readPayload()); }
+function validatePayload(payload) {
+  const errors=[]; const comp=payload.tables?.composition?.observed_headers || []; const budget=payload.tables?.budget?.observed_headers || [];
+  if (!payload.docling_api_url) errors.push('docling_api_url ausente.');
+  if (payload.docling_seed_pdf_policy?.send_full_pdf_to_docling) errors.push('send_full_pdf_to_docling deve ser false.');
+  if (!comp.some(h => h.canonical==='codigo' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('composition.codigo sem sample_text/content_text.');
+  if (!comp.some(h => h.canonical==='banco' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('composition.banco sem sample_text/content_text.');
+  if (!budget.some(h => h.canonical==='codigo' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('budget.codigo sem sample_text/content_text.');
+  return errors;
+}
+function endpointForMode() {
+  const mode=$('apiMode').value;
+  if (mode==='local') return 'http://127.0.0.1:8000/docling/extract-table-structure';
+  if (mode==='relative') return '/docling/extract-table-structure';
+  return $('doclingEndpoint').value || 'https://seu-servico-docling.onrender.com/docling/extract-table-structure';
+}
+function normalizerEndpointForMode() { return ''; }
+$('apiMode').onchange = () => { $('doclingEndpoint').value = endpointForMode(); $('normalizerEndpoint').value = normalizerEndpointForMode(); writePayload(readPayload()); };
+['doclingEndpoint','normalizerEndpoint','doclingApiKey','doclingApiKeyHeader','doclingTimeoutMs','bypassDoclingCache','clearDoclingCache','budgetSeed','compositionSeed','budgetStart','budgetEnd','compStart','compEnd'].forEach(id => $(id).addEventListener('change', () => writePayload(readPayload())));
+$('pdfFile').addEventListener('change', () => { const f=$('pdfFile').files[0]; $('summaryLine').textContent = f ? `Arquivo: ${f.name} (${f.size.toLocaleString('pt-BR')} bytes)` : 'Aguardando arquivo.'; writePayload(readPayload()); });
+function statusHandler(stage, detail) {
+  if (stage === 'seed-pdf-ready') log(`[seed-pdf] original_size_bytes=${detail.originalSizeBytes} seed_size_bytes=${detail.seedSizeBytes} page_map=${JSON.stringify(detail.pageMap || {})} sent_pdf_kind=${detail.sentPdfKind}`, 'ok');
+  else if (stage === 'docling-api-upload-started') log(`[docling-api] Enviando ${detail.filename} para ${detail.endpoint}; size=${detail.sizeBytes}; sent_pdf_kind=${detail.sentPdfKind}; timeout=${$('doclingTimeoutMs').value}ms`, 'warn');
+  else if (stage === 'docling-response-received') {
+    const perf = detail.performanceTrace || {}; const timing = perf.timing || {};
+    log(`[docling-api] resposta em ${Math.round((detail.elapsedMs||0)/100)/10}s; cache=${detail.cacheStatus || (detail.cacheHit?'HIT':'MISS')}; apiMode=${detail.apiMode||''}; sent_pdf_kind=${detail.sentPdfKind}; tableCount=${detail.tableCount}; docling_ms=${timing.docling_extract_ms||''}; total_ms=${timing.total_ms||''}`, 'ok');
+    if ((detail.missingColumns||[]).length || (detail.syntheticColumns||[]).length) log(`[docling-schema] missing=${JSON.stringify(detail.missingColumns||[])} synthetic=${JSON.stringify(detail.syntheticColumns||[])}`, 'warn');
+  }
+  else if (stage === 'normalizer-local-exports') log(`[normalizer-local] exports ok: ${JSON.stringify(detail.exports||{})}; version=${detail.version||''}`, 'ok');
+  else if (stage === 'normalizer-local-refine-started') log(`[normalizer-local] refinando no Pyodide: ${detail.filename}; path=${detail.path}`, 'warn');
+  else if (stage === 'normalizer-local-refine-finished') log(`[normalizer-local] refinamento concluído em ${Math.round((detail.elapsedMs||0)/100)/10}s; refined=${JSON.stringify(detail.refinedColumns||[])} unresolved=${JSON.stringify(detail.unresolvedColumns||[])}`, 'ok');
+  else if (stage === 'normalizer-local-fallback-to-docling') log(`[normalizer-local] fallback para Docling: ${detail.code || ''} ${detail.message || ''}`, 'warn');
+  else if (stage === 'normalizer-api-upload-started') log(`[normalizer-local] Refinando estrutura em ${detail.endpoint}; size=${detail.sizeBytes}; filename=${detail.filename}`, 'warn');
+  else if (stage === 'normalizer-response-received') log(`[normalizer-local] resposta em ${Math.round((detail.elapsedMs||0)/100)/10}s; refined=${JSON.stringify(detail.refinedColumns||[])} unresolved=${JSON.stringify(detail.unresolvedColumns||[])}`, 'ok');
+  else if (stage === 'normalizer-fallback-to-docling') log(`[normalizer-local] fallback para Docling: ${detail.code || ''} ${detail.message || ''}`, 'warn');
+
+  else if (stage === 'targeted-recovery-pdf-building') log(`[targeted-recovery] gerando mini-PDF das páginas ${JSON.stringify(detail.pages||[])}`, 'warn');
+  else if (stage === 'normalizer-local-recovery-started') log(`[targeted-recovery-local] processando ${detail.targets||0} alvos no Pyodide; páginas=${JSON.stringify(detail.pages||[])}`, 'warn');
+  else if (stage === 'normalizer-local-recovery-finished') log(`[targeted-recovery-local] concluído: patches=${detail.patches||0}, unresolved=${detail.unresolved||0}`, 'ok');
+  else if (stage === 'normalizer-local-recovery-failed-nonfatal') log(`[targeted-recovery-local] falha não fatal: ${detail.code||''} ${detail.message||''}`, 'warn');
+  else if (stage === 'normalizer-targeted-recovery-upload-started') log(`[targeted-recovery-local] enviando ${detail.targets||0} alvos para ${detail.endpoint}; páginas=${JSON.stringify(detail.pages||[])}`, 'warn');
+  else if (stage === 'normalizer-targeted-recovery-received') log(`[targeted-recovery-local] resposta: patches=${detail.patches||0}, unresolved=${detail.unresolved||0}`, 'ok');
+  else if (stage === 'normalizer-api-recovery-failed-nonfatal') log(`[targeted-recovery-local] falha não fatal: ${detail.code||''} ${detail.message||''}`, 'warn');
+  else if (stage === 'targeted-recovery-patches-applied') log(`[targeted-recovery] patches aplicados=${detail.applied||0}/${detail.received||0}`, 'ok');
+  else if (stage === 'targeted-recovery-commit-started') log(`[targeted-recovery] commit local iniciado; patches recebidos=${detail.received||0}`, 'warn');
+  else if (stage === 'targeted-recovery-patches-committed') log(`[targeted-recovery] commit verificado: received=${detail.received||0}, committed=${detail.committed||0}, verified=${detail.verified||0}, failed=${detail.failed||0}`, (detail.failed||0) ? 'warn' : 'ok');
+  else if (stage === 'accuracy-benchmark-started') log('[accuracy] benchmark iniciado com expected_final_result do payload', 'warn');
+  else if (stage === 'accuracy-benchmark-finished') log(`[accuracy] concluído: overall=${detail.overall ?? 'n/a'}, cases=${detail.cases||0}`, 'ok');
+  else if (stage === 'debug-overlay-ready') log(`[debug-overlay] pronto: issues=${detail.quality_issue_count||0}, patches=${detail.patches||0}, accuracy=${detail.accuracy ?? 'n/a'}`, 'ok');
+  else if (stage === 'merging-stages-after-targeted-recovery') log(`[merge] recalculando JSON final e correction_document após targeted recovery; applied=${detail.applied||0}`, 'warn');
+  else if (stage === 'running-budget-preview') log('[parser-budget] iniciado; preview será emitido antes das composições.');
+  else if (stage === 'preview-ready') log('[parser-budget] preview do orçamento pronto.', 'ok');
+  else if (stage === 'running-compositions-stage') log('[parser-compositions] iniciado.');
+  else if (stage === 'done') log(`[final] etapa concluída: ${detail.task || ''}`, 'ok');
+  else if (stage === 'error') log(`[erro] ${JSON.stringify(detail.error || detail)}`, 'err');
+  else log(`[runtime] ${stage} ${Object.keys(detail||{}).length ? JSON.stringify(detail) : ''}`);
+}
+function createClient() {
+  return new ApiPdfBrowserClient({
+    workerUrl: assetBase + 'pyodide-parser-worker.js', manifestUrl: assetBase + 'manifest.json', sourceArchiveUrl: assetBase + 'api_pdf_pyodide_src.zip', versionTag: RELEASE,
+    doclingEndpoint: $('doclingEndpoint').value.trim(), normalizerEndpoint: $('normalizerEndpoint').value.trim(), normalizerMode: 'local_pyodide', doclingApiKey: $('doclingApiKey').value.trim(), doclingApiKeyHeader: $('doclingApiKeyHeader').value.trim() || 'x-api-key', doclingTimeoutMs: Number($('doclingTimeoutMs').value || 120000), normalizerTimeoutMs: 90000, bypassDoclingCache: !!$('bypassDoclingCache').checked, clearDoclingCacheBeforeRun: !!$('clearDoclingCache').checked, allowRelativeDoclingEndpoint: $('apiMode').value === 'relative', production: $('apiMode').value === 'real'
+  }, statusHandler);
+}
+async function ensureClient() { if (!client) client = createClient(); await client.ready(); return client; }
+async function requireFile() { const f=$('pdfFile').files[0]; if(!f) throw new Error('Selecione um PDF.'); return f; }
+async function runDoclingOnly() {
+  const file = await requireFile(); const payload = readPayload(); const errors=validatePayload(payload); if(errors.length) throw new Error(errors.join('\\n'));
+  artifacts.payload = payload; render(outputs.payload, payload); setTab('docling'); log('API Docling + Normalizer iniciados pelo worker. O PDF completo não será enviado às APIs; apenas o seed.', 'warn');
+  const c = await ensureClient(); const result = await c.runDoclingOnly(file, payload); artifacts.docling=result; render(outputs.docling, result); log('API Docling + Normalizer concluídas com mini-PDF seed.', 'ok');
+}
+async function runFullFlow() {
+  const file = await requireFile(); const payload = readPayload(); const errors=validatePayload(payload); if(errors.length) throw new Error(errors.join('\\n'));
+  artifacts.payload=payload; render(outputs.payload,payload); log('Fluxo completo browser iniciado. Este caminho NÃO chama /simulate/lovable-flow.', 'warn'); setTab('preview');
+  const c = await ensureClient(); const flowWrap = await c.parseWithPreview(file, payload, { onPreview: (preview) => { artifacts.preview=preview; render(outputs.preview, preview); setTab('preview'); } });
+  const flow=flowWrap.flow; artifacts.flow=flow; artifacts.docling={ docling_seed_pdf: flow.docling_seed_pdf, docling_response: flow.docling_response }; artifacts.final=flow.final_result; artifacts.correction=flow.correction_document; artifacts.budget=flow.budget_stage; artifacts.compositions=flow.compositions_stage; artifacts.accuracy=flow.final_result?.meta?.accuracy_report || {}; artifacts.reparse=flow.final_result?.meta?.performance?.selective_field_reparse_executor || {}; artifacts.consensus=flow.final_result?.meta?.performance?.candidate_profile_consensus_engine || {}; artifacts.debug=flow.final_result?.meta?.debug_overlay || {}; 
+  render(outputs.docling, artifacts.docling); render(outputs.final, artifacts.final); render(outputs.correction, artifacts.correction); render(outputs.budget, artifacts.budget); render(outputs.compositions, artifacts.compositions); render(outputs.accuracy, artifacts.accuracy); render(outputs.reparse, artifacts.reparse); render(outputs.consensus, artifacts.consensus); render(outputs.debug, artifacts.debug); setTab('final'); log('Fluxo completo browser concluído.', 'ok');
+}
+async function runGuarded(name, fn) { try { document.querySelectorAll('button').forEach(b=>b.disabled=true); log(`${name} iniciado.`); await fn(); } catch(e) { log(`${name} falhou: ${e?.message || e}`, 'err'); } finally { document.querySelectorAll('button').forEach(b=>b.disabled=false); } }
+$('applyFieldsBtn').onclick = () => { writePayload(readPayload()); log('Campos aplicados no payload.', 'ok'); };
+$('validatePayloadBtn').onclick = () => { try { const p=readPayload(); const errors=validatePayload(p); render(outputs.payload,p); if(errors.length) log('Payload com avisos/erros: '+errors.join(' | '),'err'); else log('Payload válido e com samples.', 'ok'); } catch(e) { log('Payload inválido: '+e.message, 'err'); } };
+$('apiOnlyBtn').onclick = () => runGuarded('API Docling seed', runDoclingOnly);
+$('runBtn').onclick = () => runGuarded('Fluxo completo browser', runFullFlow);
+$('resetBtn').onclick = () => { if(client) client.reset(); client=null; log('Worker resetado.', 'warn'); };
+$('copyCurrentBtn').onclick = async () => { const txt = outputs[currentTab].textContent || ''; await navigator.clipboard.writeText(txt); log('Aba copiada.', 'ok'); };
+$('downloadCurrentBtn').onclick = () => createDownload(`${currentTab}_${RELEASE}.json`, outputs[currentTab].textContent || '');
+writePayload(clonePayload()); setTab('preview'); log('HTML v61.0.35 carregado. Inclui Candidate Profile Consensus Engine, reparse seletivo, ownership, acurácia e debug overlay para Lovable.', 'ok');
+</script>
+</body>
+</html>

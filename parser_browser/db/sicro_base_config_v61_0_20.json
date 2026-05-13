@@ -1,0 +1,439 @@
+{
+  "schema_version": "sicro-only-v61.0.20",
+  "sicro": {
+    "banks": {
+      "valid": [
+        "SICRO",
+        "SICRO2",
+        "SICRO3"
+      ],
+      "normalization": {
+        "SICRO": "SICRO",
+        "SICRO2": "SICRO2",
+        "SICRO3": "SICRO3",
+        "SICRO 2": "SICRO2",
+        "SICRO 3": "SICRO3"
+      },
+      "regex": "\\bSICRO\\s*(?:2|3)?\\b"
+    },
+    "code_patterns": {
+      "composicao": "^\\d{7}$",
+      "equipamento": "^E\\d{3,5}$",
+      "mao_obra": "^P\\d{3,5}$",
+      "material": "^M\\d{3,5}$",
+      "servico_auxiliar": "^\\d{7}$",
+      "servico_tempo_fixo": "^\\d{7}$",
+      "servico_transporte": "^\\d{7}$"
+    },
+    "units": {
+      "common": [
+        "%",
+        "h",
+        "H",
+        "m",
+        "M",
+        "m²",
+        "m2",
+        "M2",
+        "m³",
+        "m3",
+        "M3",
+        "kg",
+        "KG",
+        "t",
+        "T",
+        "tkm",
+        "l",
+        "L",
+        "un",
+        "UN",
+        "und",
+        "UND"
+      ],
+      "by_section": {
+        "principal": [
+          "m",
+          "m²",
+          "m2",
+          "m³",
+          "m3",
+          "t",
+          "kg",
+          "un",
+          "und",
+          "tkm"
+        ],
+        "A": [
+          "h"
+        ],
+        "B": [
+          "h"
+        ],
+        "C": [
+          "kg",
+          "t",
+          "m",
+          "m²",
+          "m2",
+          "m³",
+          "m3",
+          "l",
+          "un"
+        ],
+        "D": [
+          "m",
+          "m²",
+          "m2",
+          "m³",
+          "m3",
+          "kg",
+          "t",
+          "un",
+          "h"
+        ],
+        "E": [
+          "t",
+          "m³",
+          "m3",
+          "kg",
+          "un"
+        ],
+        "F": [
+          "tkm"
+        ]
+      },
+      "short_token_max_len": 4
+    },
+    "sections": {
+      "A": {
+        "public_key": "equipamentos",
+        "name": "Equipamentos",
+        "has_preco_unitario": false,
+        "math": "quantidade * (utilizacao.operativa * custo_operacional.operativa + utilizacao.improdutiva * custo_operacional.improdutiva)",
+        "columns": [
+          "codigo",
+          "banco",
+          "equipamento",
+          "quantidade",
+          "utilizacao.operativa",
+          "utilizacao.improdutiva",
+          "custo_operacional.operativa",
+          "custo_operacional.improdutiva",
+          "custo_horario"
+        ]
+      },
+      "B": {
+        "public_key": "mao_obra",
+        "name": "Mão de Obra",
+        "has_preco_unitario": false,
+        "math": "quantidade * salario_hora",
+        "columns": [
+          "codigo",
+          "banco",
+          "mao_obra",
+          "quantidade",
+          "salario_hora",
+          "custo_horario"
+        ]
+      },
+      "C": {
+        "public_key": "materiais",
+        "name": "Material",
+        "has_preco_unitario": true,
+        "math": "quantidade * preco_unitario",
+        "columns": [
+          "banco",
+          "codigo",
+          "material",
+          "quantidade",
+          "unidade",
+          "preco_unitario",
+          "custo_horario"
+        ]
+      },
+      "D": {
+        "public_key": "atividades_auxiliares",
+        "name": "Atividades Auxiliares",
+        "has_preco_unitario": true,
+        "math": "quantidade * preco_unitario",
+        "columns": [
+          "banco",
+          "codigo",
+          "atividade_auxiliar",
+          "quantidade",
+          "unidade",
+          "preco_unitario",
+          "custo_horario"
+        ]
+      },
+      "E": {
+        "public_key": "tempos_fixos",
+        "name": "Tempos Fixos",
+        "has_preco_unitario": true,
+        "math": "quantidade * preco_unitario",
+        "columns": [
+          "banco",
+          "insumo",
+          "tempo_fixo",
+          "codigo",
+          "quantidade",
+          "unidade",
+          "preco_unitario",
+          "custo_horario"
+        ]
+      },
+      "F": {
+        "public_key": "momentos_transporte",
+        "name": "Momento de Transporte",
+        "has_preco_unitario": false,
+        "math": "sum(quantidade * dmt.quantidade_dmt * dmt.preco_unitario_dmt)",
+        "columns": [
+          "banco",
+          "insumo",
+          "momento_transporte",
+          "quantidade",
+          "unidade",
+          "dmt.LN",
+          "dmt.RP",
+          "dmt.P",
+          "custo_horario"
+        ]
+      }
+    },
+    "summary_labels": {
+      "custo_horario_equipamentos": [
+        "Custo Horário de Equipamentos",
+        "Custo Horario de Equipamentos"
+      ],
+      "custo_horario_mao_obra": [
+        "Custo Horário da Mão de Obra",
+        "Custo Horario da Mao de Obra"
+      ],
+      "custo_total_material": [
+        "Custo Total do Material"
+      ],
+      "custo_total_atividades_auxiliares": [
+        "Custo Total das Atividades",
+        "Custo Total das Atividades Auxiliares"
+      ],
+      "custo_total_tempos_fixos": [
+        "Custo Total dos Tempos Fixos"
+      ],
+      "custo_total_momentos_transporte": [
+        "Custo total dos Momentos de Transportes",
+        "Custo Total dos Momentos de Transportes"
+      ],
+      "adc_mo_ferramentas": [
+        "Adc.M.O. - Ferramentas"
+      ],
+      "custo_horario_execucao": [
+        "Custo Horário de Execução",
+        "Custo Horario de Execucao"
+      ],
+      "fator_influencia_chuva": [
+        "Fator de Influencia da Chuva",
+        "Fator de Influência da Chuva"
+      ],
+      "custo_fic": [
+        "Custo do FIC"
+      ],
+      "producao_equipe": [
+        "Produção de Equipe",
+        "Producao de Equipe"
+      ],
+      "custo_unitario_execucao": [
+        "Custo Unitário de Execução",
+        "Custo Unitario de Execucao"
+      ],
+      "preco_unitario": [
+        "Preço Unitário",
+        "Preco Unitario"
+      ],
+      "valor_bdi": [
+        "Valor do BDI"
+      ],
+      "valor_com_bdi": [
+        "Valor com BDI"
+      ]
+    },
+    "validation": {
+      "row_tolerance_abs": "0.0100",
+      "section_tolerance_abs": "0.0200",
+      "principal_tolerance_abs": "0.05",
+      "preserve_decimal_text": true,
+      "require_preco_unitario_in_sections": [
+        "C",
+        "D",
+        "E"
+      ],
+      "require_evidence": true,
+      "forbid_preco_unitario_in_sections": [
+        "A",
+        "B"
+      ],
+      "confidence_scoring": true,
+      "math_recovery_enabled": true,
+      "synthetic_reference_optional": true
+    },
+    "lovable_payload_hints": {
+      "recommended_minimal_fields": [
+        "ranges.compositions.start_page/end_page",
+        "candidate_sicro_items: [{item, codigo, banco, descricao, page_hint}]",
+        "known_headers_by_page if available: section letters A-F with header y/window",
+        "document_bank_versions: SICRO/SICRO2/SICRO3 and data-base"
+      ],
+      "note": "Esses campos ajudam, mas o motor isolado consegue operar somente com PDF + intervalo de páginas. Evite payload grande: basta passar páginas e candidatos SICRO quando a IA já os tiver visto no orçamento sintético."
+    },
+    "layout_rules": {
+      "geometry_provider": "pymupdf_words",
+      "requires_word_coordinates": true,
+      "allow_text_only_fallback": false,
+      "line_grouping": "adaptive_by_median_word_height",
+      "row_evidence": "store bbox/page/line for principal and every row",
+      "principal_must_precede_sections": true,
+      "section_letters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "section_closes_on": [
+        "next_section_header",
+        "next_principal_composition",
+        "non_sicro_composition"
+      ],
+      "multiengine_profiles": [
+        "words_adaptive",
+        "words_tight_2_0",
+        "words_loose_3_2",
+        "text_diagnostic"
+      ],
+      "text_mode_role": "diagnostic_only_never_selected_over_valid_geometry",
+      "footer_summary_policy": "capture only exact known SICRO summary labels; ignore page/date/institutional footer lines even when numeric"
+    },
+    "token_knowledge": {
+      "bank_tokens": [
+        "SICRO",
+        "SICRO2",
+        "SICRO3"
+      ],
+      "code_without_decimal_separator": "tokens without comma/dot and matching configured patterns are candidate codes",
+      "short_unit_rule": "tokens with <=4 chars, not numeric, not bank and not code are candidate units, then validated by section registry",
+      "family_prefixes": {
+        "E": "equipment",
+        "P": "labor",
+        "M": "material"
+      },
+      "seven_digit_codes": "composition/service codes; final role depends on section context: principal, D auxiliary, E fixed time, or F transport branch"
+    },
+    "quality_gates": {
+      "principal_signature_required": true,
+      "field_confidence_enabled": true,
+      "math_recovery_policy": "only rewrite numeric columns when current validation fails and an alternative tail permutation closes within tolerance",
+      "synthetic_reference_policy": "opportunistic only; absence is normal for auxiliary SICRO compositions",
+      "selection_policy": "choose highest-scored production geometry candidate; diagnostic engines are compared but not production winners"
+    },
+    "fusion": {
+      "enabled": true,
+      "strategy": "field_level_evidence_fusion_not_whole_engine_vote",
+      "candidate_pool": true,
+      "math_combination_search": true,
+      "repair_loop_max_cycles": 3,
+      "synthetic_reference_required": false,
+      "text_diagnostic_can_win": false
+    },
+    "document_profile": {
+      "enabled": true,
+      "two_pass_required": true,
+      "learned_fields": [
+        "codigo",
+        "insumo",
+        "banco",
+        "unidade",
+        "quantidade",
+        "preco_unitario",
+        "custo_horario",
+        "salario_hora"
+      ],
+      "outlier_policy": "median_weighted_by_math_and_geometry",
+      "second_pass_uses_global_profile": true
+    },
+    "specialist_engines": {
+      "money_section_engine": {
+        "A_B_have_no_preco_unitario": true,
+        "C_D_E_have_preco_unitario": true,
+        "F_has_ln_rp_p": true
+      },
+      "code_bank_engine": {
+        "banks": [
+          "SICRO",
+          "SICRO2",
+          "SICRO3"
+        ],
+        "code_families": [
+          "7_digit_service",
+          "E_equipment",
+          "P_labor",
+          "M_material"
+        ]
+      },
+      "unit_engine": {
+        "short_token_max_len": 4
+      },
+      "footer_summary_engine": {
+        "strong_label_required": true
+      },
+      "section_f_engine": {
+        "branches": [
+          "LN",
+          "RP",
+          "P"
+        ]
+      }
+    },
+    "layout_hardening": {
+      "enabled": true,
+      "content_role_classifier": true,
+      "unknown_columns_allowed": true,
+      "layout_hypothesis_solver": true,
+      "normalized_bands": true,
+      "layout_clusters": true,
+      "description_reflow_from_learned_band": true,
+      "extra_columns_policy": "quarantine_unknown_columns_unless_math_and_semantic_evidence_promotes_them",
+      "reordered_columns_policy": "solve_by_content_type_and_section_math_not_by_index",
+      "description_policy": "description_absorbs_wrapped_text_only_inside_learned_description_band",
+      "browser_parity": "semantic_signature_compare",
+      "description_reflow": "learned_description_band + local row context"
+    },
+    "browser": {
+      "pyodide_target": "0.29.3",
+      "pymupdf_required": true,
+      "full_probe_html": "tools/browser/browser_full_sicro_probe.html"
+    },
+    "performance": {
+      "words_cache": "enabled"
+    },
+    "pipeline": {
+      "max_passes": 3,
+      "stabilization_pass": "run if issues remain or forced"
+    },
+    "features": {
+      "text_integrity_engine": true,
+      "reference_registry": true,
+      "raw_trace_text_reflow": true,
+      "clean_audit_output": true
+    }
+  },
+  "version": "sicro-only-v61.0.20-audit-confidence-boundary",
+  "features": {
+    "document_consistency_validator": true,
+    "trace_boundary_cleaner": true,
+    "evidence_scorer_v2": true,
+    "friendly_clean_cost_fields": true
+  },
+  "metadata": {
+    "monorepo_integrated_version": "v61.0.35-candidate-profile-consensus-engine"
+  }
+}

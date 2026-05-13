@@ -1,0 +1,20 @@
+{
+  "projectVersion": "v61.0.35-candidate-profile-consensus-engine",
+  "contractVersion": "v61.0.35-candidate-profile-consensus-engine",
+  "pyodideBundleVersion": "v61.0.35-candidate-profile-consensus-engine",
+  "pyodideVersion": "0.29.3",
+  "pyodideBaseUrl": "https://cdn.jsdelivr.net/pyodide/v0.29.3/full/",
+  "builtinPackages": [
+    "pydantic",
+    "pymupdf"
+  ],
+  "packages": [
+    "pypdf"
+  ],
+  "sourceArchive": "api_pdf_pyodide_src.zip",
+  "sourceZipSha256": "753c1c08e6fcf9d5321a62bee180fc19ab47da1ee0a0b91547568e0267ba4358",
+  "entryModule": "app.browser.pyodide_entry",
+  "entryFunction": "parse_pdf_file_json",
+  "flowEntryMessage": "lovable-flow",
+  "notes": "v61.0.35: Candidate Profile Consensus Engine orchestrates current value, Evidence Graph, cross-table evidence, ownership, neighbour subtraction and debug reports."
+}
