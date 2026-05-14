@@ -1,0 +1,19 @@
+{
+  "config_ui": {
+    "version": "v61.0.35-candidate-profile-consensus-engine",
+    "tabs": [
+      "Bancos",
+      "Unidades",
+      "Aliases de headers",
+      "Schemas",
+      "Perfis personalizados",
+      "Regras de recheck",
+      "Quality Gate",
+      "Tabela personalizada do usuário",
+      "Merge admin + usuário",
+      "Consenso de perfis"
+    ],
+    "supports_user_base_config_overlay": true,
+    "supports_custom_table_builder": true
+  }
+}

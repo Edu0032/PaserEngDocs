@@ -1,0 +1,10 @@
+{
+  "custom_bank_profiles": {
+    "editable_via_lovable": true,
+    "profiles": {},
+    "matching": {
+      "min_header_score": 0.72,
+      "min_total_score": 0.78
+    }
+  }
+}
