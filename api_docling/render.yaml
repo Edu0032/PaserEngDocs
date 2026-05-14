@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: starter
     buildCommand: pip install -r requirements-server.txt
-    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 240 --graceful-timeout 240 --log-level info
+    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 180 --graceful-timeout 180 --log-level info
     envVars:
       - key: API_PDF_ENV
         value: production
@@ -16,10 +16,10 @@ services:
       - key: DOCLING_OCR_ENABLED
         value: "false"
       - key: DOCLING_TIMEOUT_SECONDS
-        value: "240"
+        value: "120"
       - key: API_PDF_REQUIRE_KEY
         value: "true"
       - key: API_PDF_API_KEY_HEADER
         value: x-api-key
       - key: API_PDF_API_KEY
-        value: parser-orca-docling-2026-chave-secreta
+        sync: false
