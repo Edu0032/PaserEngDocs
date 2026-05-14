@@ -22,4 +22,4 @@ services:
       - key: API_PDF_API_KEY_HEADER
         value: x-api-key
       - key: API_PDF_API_KEY
-        sync: false
+        value: parser-orca-docling-2026-chave-secreta
