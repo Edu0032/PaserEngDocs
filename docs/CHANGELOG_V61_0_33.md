@@ -1,6 +1,6 @@
 # Changelog — v61.0.33
 
-`v61.0.35-candidate-profile-consensus-engine`
+`v61.0.39-deep-area-sweep-iterative-closure`
 
 ## Selective Field Reparse Executor
 

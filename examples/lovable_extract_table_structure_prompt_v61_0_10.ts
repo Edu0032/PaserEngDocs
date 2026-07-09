@@ -23,12 +23,12 @@ REGRAS CRÍTICAS:
 3. Não invente colunas.
 4. sample_text deve ser uma célula real da primeira linha do corpo.
 5. Preserve números no formato brasileiro: 1,0000000; 1,2680; 52.365,69.
-6. Preserve códigos: 74209/001; CP - 120; ANP 01; CADM.01; COMP.JCO.3.
+6. Preserve códigos: 12345/001; CP - 001; ABC 01; CADM.01; COMP.EXEMPLO.1.
 7. Textos institucionais, BDI, datas, órgão e título vão em non_column_context ou table_parent_header.
 
 ORÇAMENTO SINTÉTICO:
 - item_agregador: ITEM. Ex.: 1.1.1.
-- codigo: CÓDIGO. Ex.: 74209/001.
+- codigo: CÓDIGO. Ex.: 12345/001.
 - fonte: FONTE/BANCO. Ex.: SINAPI, SICRO3, PRÓPRIO.
 - descricao: DESCRIÇÃO/ESPECIFICAÇÕES DOS SERVIÇOS.
 - und: UND/UNIDADE. Ex.: m².

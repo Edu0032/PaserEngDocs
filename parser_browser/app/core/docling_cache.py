@@ -4,7 +4,7 @@ import hashlib
 import json
 from typing import Any, Dict
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def stable_obj_hash(obj: Any) -> str:

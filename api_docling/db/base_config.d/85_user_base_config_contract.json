@@ -1,8 +1,8 @@
 {
   "user_base_config_contract": {
-    "version": "v61.0.35-candidate-profile-consensus-engine",
+    "version": "v61.0.39-deep-area-sweep-iterative-closure",
     "enabled": true,
-    "merge_strategy": "deep_merge_admin_then_user",
+    "merge_strategy": "deep_merge_admin_then_user_before_parse",
     "admin_only_sections": [
       "quality_gate",
       "recheck_rules",
@@ -19,9 +19,28 @@
     "custom_table_builder": {
       "enabled": true,
       "ui_mode": "spreadsheet_like_grid",
-      "required_column_fields": ["header", "canonical"],
-      "supported_families": ["sinapi_like", "sectioned", "budget_like"],
-      "parser_consumption": "merged_base_config_before_parse"
-    }
+      "required_column_fields": [
+        "header",
+        "canonical"
+      ],
+      "supported_families": [
+        "sinapi_like",
+        "sectioned",
+        "budget_like"
+      ],
+      "parser_consumption": "merged_base_config_before_parse",
+      "optional_column_fields": [
+        "type",
+        "role",
+        "ignore_in_domain",
+        "include_in_final_json",
+        "group",
+        "first_row_text",
+        "sample_text",
+        "content_text"
+      ]
+    },
+    "admin_publish_model": "admin_base_config_is_global_and_versioned",
+    "normal_user_edit_scope": "user_base_config_overlay_only"
   }
 }

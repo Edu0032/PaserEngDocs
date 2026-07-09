@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-globals */
+// Backward-compat note: enrich_physical_evidence_index_file_json remains exported; v47 worker calls run_core_extraction_accuracy_flow_file_json.
 let pyodide = null;
 let manifest = null;
 let parserModule = null;
@@ -7,7 +8,7 @@ let workerState = 'idle';
 let activeParsePath = null;
 let normalizerCapabilities = null;
 
-const RELEASE_VERSION = 'v61.0.35-candidate-profile-consensus-engine';
+const RELEASE_VERSION = 'v61.0.74-release-integrity-and-diff-scan-hardening';
 const DEFAULT_DOCLING_TIMEOUT_MS = 120000;
 const DEFAULT_NORMALIZER_TIMEOUT_MS = 90000;
 
@@ -98,6 +99,7 @@ function normalizeLovablePayloadToOptions(initialPayload = {}, fileMeta = {}) {
     normalizer_report: p.normalizer_report || {},
     geometry_evidence: p.geometry_evidence || {},
     docling_seed_pdf: p.docling_seed_pdf || {},
+    accuracy_profile: p.accuracy_profile || {},
   };
   if (!out.orcamento_inicio || !out.orcamento_fim || !out.composicoes_inicio || !out.composicoes_fim) {
     throw buildWorkerError('MISSING_REQUIRED_RANGES', 'Payload inicial não contém ranges válidos para orçamento e composições.', { ranges });
@@ -504,6 +506,129 @@ function addTargetsFromSelectiveReparsePlan(targets, finalResult = {}) {
 
 }
 
+
+function addTargetsFromLineCertaintyClosure(targets, finalResult = {}) {
+  const report = finalResult?.meta?.performance?.line_certainty_closure_engine || {};
+  const closureTargets = Array.isArray(report.deep_area_sweep_targets) ? report.deep_area_sweep_targets : [];
+  for (const t of closureTargets) {
+    if (!t || typeof t !== 'object') continue;
+    const path = Array.isArray(t.path) ? t.path : [];
+    const codigo = String(t.codigo || '').trim();
+    if (!codigo || !path.length) continue;
+    const family = String(t.family || '').toLowerCase() === 'budget' ? 'budget' : 'sinapi_like';
+    const field = String(t.field || (family === 'budget' ? 'especificacao' : 'descricao')).trim();
+    const rowPath = path[path.length - 1] === field ? path.slice(0, -1) : path;
+    targets.push({
+      target_id: `${rowPath.join('.')}::${field}`,
+      path: [...rowPath, field],
+      field,
+      issue: t.reason || 'line_certainty_unclosed_field',
+      current_value: String(t.current_value || ''),
+      codigo,
+      banco: String(t.banco || t.fonte || '').trim(),
+      page: Number(t.page || t.pagina || t.pagina_inicio || 0),
+      family,
+      table_family: family === 'budget' ? 'budget' : 'composition',
+      item: t.item || '',
+      row_group: family === 'budget' ? 'budget_item' : (t.row_group || 'principal'),
+      collection: family === 'budget' ? 'orcamento_sintetico' : (t.collection || 'principais'),
+      line_certainty_target: true,
+    });
+  }
+}
+
+function rangePagesFromPayload(...payloads) {
+  const pages = [];
+  const addRange = (range) => {
+    if (!range) return;
+    let start = 0; let end = 0;
+    if (Array.isArray(range)) { start = Number(range[0] || 0); end = Number(range[1] || 0); }
+    else if (typeof range === 'object') { start = Number(range.start || range.inicio || range[0] || 0); end = Number(range.end || range.fim || range[1] || 0); }
+    if (Number.isFinite(start) && Number.isFinite(end) && start > 0 && end >= start) {
+      for (let p = start; p <= end; p++) pages.push(p);
+    }
+  };
+  for (const payload of payloads) {
+    const ranges = payload?.ranges || payload?.meta?.input_metadata?.ranges || payload?.parser_contract?.ranges || {};
+    addRange(ranges.orcamento || ranges.budget);
+    addRange(ranges.composicoes || ranges.compositions);
+  }
+  return [...new Set(pages)].sort((a, b) => a - b);
+}
+
+function addTargetsFromFullPdfCodeBankSweep(targets, finalResult = {}, initialPayload = {}) {
+  const physicalIndex = finalResult?.meta?.performance?.physical_evidence_index || {};
+  if (physicalIndex && physicalIndex.status === 'ok') {
+    // v61.0.42: the mandatory whole-document code+bank scan has already run
+    // once as a physical index. Do not explode it back into repeated page
+    // targets; remaining unresolved fields are handled by local deep sweeps.
+    return;
+  }
+  const report = finalResult?.meta?.performance?.line_certainty_closure_engine || {};
+  const heavyTargets = Array.isArray(report.full_pdf_code_bank_occurrence_targets) ? report.full_pdf_code_bank_occurrence_targets : [];
+  const batchTargets = Array.isArray(report.full_pdf_code_bank_occurrence_batch_targets) ? report.full_pdf_code_bank_occurrence_batch_targets : [];
+  if (!heavyTargets.length && !batchTargets.length) return;
+  const pages = rangePagesFromPayload(initialPayload, finalResult);
+  if (!pages.length) return;
+  let emitted = 0;
+  const emittedKeys = new Set();
+  const maxEmitted = Number(initialPayload?.accuracy_profile?.max_full_pdf_code_bank_targets || 220);
+  const emit = (t, rowTarget, field, page, mode) => {
+    const path = Array.isArray(rowTarget?.path) ? rowTarget.path : (Array.isArray(t?.path) ? t.path : []);
+    const codigo = String(t?.codigo || rowTarget?.codigo || '').trim();
+    if (!codigo || !path.length || !field) return false;
+    const family = String(rowTarget?.family || t?.family || '').toLowerCase() === 'budget' ? 'budget' : 'sinapi_like';
+    const rowPath = path[path.length - 1] === field ? path.slice(0, -1) : path;
+    const dedupeKey = `${rowPath.join('.')}::${field}::${page}`;
+    if (emittedKeys.has(dedupeKey)) return false;
+    emittedKeys.add(dedupeKey);
+    targets.push({
+      target_id: `fullpdf::${rowPath.join('.')}::${field}::p${page}`,
+      path: [...rowPath, field],
+      field,
+      issue: 'full_pdf_code_bank_occurrence_sweep',
+      current_value: '',
+      codigo,
+      banco: String(t?.banco || rowTarget?.banco || '').trim(),
+      page,
+      family,
+      table_family: family === 'budget' ? 'budget' : 'composition',
+      item: rowTarget?.item || t?.item || '',
+      row_group: family === 'budget' ? 'budget_item' : (rowTarget?.group || rowTarget?.row_group || t?.group || 'principal'),
+      collection: family === 'budget' ? 'orcamento_sintetico' : (rowTarget?.collection || t?.collection || 'principais'),
+      full_pdf_code_bank_occurrence_target: true,
+      batch_full_pdf_code_bank_occurrence_target: mode === 'batch',
+      late_fallback: true,
+      strategic_batch_index: mode === 'batch',
+    });
+    emitted++;
+    return emitted >= maxEmitted;
+  };
+
+  // v61.0.41: batch targets come first so the same code+bank is planned once
+  // and then distributed to unresolved row fields.  This reduces repeated
+  // whole-document scans while still producing normal per-field recovery targets.
+  for (const bt of batchTargets) {
+    if (!bt || typeof bt !== 'object') continue;
+    const rows = Array.isArray(bt.row_targets) ? bt.row_targets : [];
+    for (const rowTarget of rows) {
+      for (const field of (rowTarget.missing_fields || bt.missing_fields || []).slice(0, 6)) {
+        for (const page of pages) {
+          if (emit(bt, rowTarget, field, page, 'batch')) return;
+        }
+      }
+    }
+  }
+  for (const t of heavyTargets) {
+    if (!t || typeof t !== 'object') continue;
+    for (const field of (t.missing_fields || []).slice(0, 5)) {
+      for (const page of pages) {
+        if (emit(t, t, field, page, 'row')) return;
+      }
+    }
+  }
+}
+
 function addTargetsFromSelectiveFieldExecutor(targets, finalResult = {}) {
   const report = finalResult?.meta?.performance?.selective_field_reparse_executor || {};
   const executorTargets = Array.isArray(report.targets) ? report.targets : [];
@@ -576,7 +701,41 @@ function buildBudgetNeighborContextIndex(finalResult = {}) {
   return index;
 }
 
-function collectTargetedRecoveryTargets(finalResult = {}) {
+
+function isLowValueDescriptionRecoveryTarget(t) {
+  const field = String(t?.field || '').toLowerCase();
+  if (!['descricao', 'especificacao'].includes(field)) return false;
+  const issue = String(t?.issue || '').toLowerCase();
+  const cur = String(t?.current_value || '').replace(/\s+/g, ' ').trim();
+  if (!cur) return false;
+  if (issue.includes('missing')) return false;
+  // Keep explicit truncation targets only when the text really looks unfinished.
+  const unfinished = /(?:\b(DE|DA|DO|DAS|DOS|PARA|COM|EM|E|OU|X|DN|MM|CM|AF_)|[-,;:/])$/i.test(cur) || cur.length < 32;
+  if (issue.includes('truncated')) return !unfinished && cur.length >= 48;
+  // Profile/broken-line candidates produced too much noise in v49/v50.  They
+  // are only worth a mini-PDF recovery when the current value is short or clearly
+  // unfinished; otherwise keep them as diagnostics in the correction document.
+  if (issue.includes('broken') || issue.includes('profile')) return !unfinished && cur.length >= 28;
+  return false;
+}
+
+function isPriorityRecoveryTarget(t) {
+  const field = String(t?.field || '').toLowerCase();
+  const issue = String(t?.issue || '').toLowerCase();
+  const cur = String(t?.current_value || '').replace(/\s+/g, ' ').trim();
+  if (['quant', 'valor_unit', 'total', 'custo_unitario_sem_bdi', 'custo_unitario_com_bdi', 'custo_parcial', 'custo_total', 'und'].includes(field)) return true;
+  if (issue.includes('missing') || issue.includes('empty') || issue.includes('math')) return true;
+  if (['descricao', 'especificacao'].includes(field)) {
+    if (issue.includes('broken') || issue.includes('profile')) return false;
+    if (isLowValueDescriptionRecoveryTarget(t)) return false;
+    // Description recovery is a fallback, not the main path. Keep only short or
+    // clearly unfinished values to avoid hundreds of no-op targets.
+    return cur.length > 0 && cur.length < 96;
+  }
+  return !isLowValueDescriptionRecoveryTarget(t);
+}
+
+function collectTargetedRecoveryTargets(finalResult = {}, initialPayload = {}) {
   const comp = finalResult?.composicoes || {};
   const targets = [];
   const budgetNeighborContextIndex = buildBudgetNeighborContextIndex(finalResult);
@@ -665,14 +824,19 @@ function collectTargetedRecoveryTargets(finalResult = {}) {
 
   addTargetsFromSelectiveReparsePlan(targets, finalResult);
   addTargetsFromSelectiveFieldExecutor(targets, finalResult);
+  addTargetsFromLineCertaintyClosure(targets, finalResult);
+  addTargetsFromFullPdfCodeBankSweep(targets, finalResult, initialPayload);
 
   const seen = new Set();
-  return targets.filter((t) => {
+  const filtered = targets.filter((t) => {
+    if (!isPriorityRecoveryTarget(t)) return false;
     const k = `${t.target_id}|${t.page}|${t.codigo}|${t.banco}`;
     if (seen.has(k)) return false;
     seen.add(k);
     return Number(t.page || 0) > 0;
   });
+  const maxTargets = Number(initialPayload?.accuracy_profile?.max_targeted_recovery_targets || initialPayload?.parser_contract?.max_targeted_recovery_targets || 90);
+  return filtered.slice(0, Math.max(1, maxTargets));
 }
 
 
@@ -726,20 +890,21 @@ async function callNormalizerRecoveryLocalPyodide(targetPath, recoveryPayload, f
 }
 
 
-async function buildSelectedPagesPdfBufferFromPath(pdfPath, pages) {
+async function buildSelectedPagesPdfBufferFromPath(pdfPath, pages, options = {}) {
   const uniquePages = [...new Set((pages || []).map((p) => Number(p)).filter((p) => Number.isFinite(p) && p > 0))].sort((a, b) => a - b);
   if (!uniquePages.length) {
     throw buildWorkerError('TARGETED_RECOVERY_NO_PAGES', 'Nenhuma página válida para mini-PDF direcionado.', { pages });
   }
-  setState('targeted-recovery-pdf-building', { pages: uniquePages, note: 'Gerando mini-PDF direcionado localmente no Pyodide.' });
-  const payload = { pages: uniquePages, max_pages: 12, purpose: 'normalizer_targeted_recovery' };
+  const maxPages = Math.max(1, Number(options.maxPages || 12));
+  setState('targeted-recovery-pdf-building', { pages: uniquePages, maxPages, note: 'Gerando mini-PDF direcionado localmente no Pyodide.' });
+  const payload = { pages: uniquePages, max_pages: maxPages, purpose: 'normalizer_targeted_recovery' };
   const selectedString = await callParserFunction('build_selected_pages_pdf_file_json', pdfPath, JSON.stringify(payload));
   const selectedInfo = JSON.parse(selectedString || '{}');
   if (selectedInfo && selectedInfo.status === 'error') {
     throw buildWorkerError(
       selectedInfo.error?.code || 'TARGETED_RECOVERY_PDF_BUILD_FAILED',
       selectedInfo.error?.message || 'Falha ao gerar mini-PDF direcionado.',
-      selectedInfo.error?.detail || { pages: uniquePages }
+      selectedInfo.error?.detail || { pages: uniquePages, maxPages }
     );
   }
   const targetPath = selectedInfo.targeted_pdf_path;
@@ -758,49 +923,159 @@ async function buildSelectedPagesPdfBufferFromPath(pdfPath, pages) {
   return { targetBuffer, targetPath, targetMeta };
 }
 
+function getTargetPage(target) {
+  return Number(target?.page || target?.pagina || target?.pagina_inicio || target?.page_original || 0);
+}
+
+function chunkPagesForTargetedRecovery(pages, maxPagesPerBatch = 12) {
+  const ordered = [...new Set((pages || [])
+    .map((p) => Number(p))
+    .filter((p) => Number.isFinite(p) && p > 0))]
+    .sort((a, b) => a - b);
+  const batchSize = Math.max(1, Number(maxPagesPerBatch || 12));
+  const chunks = [];
+  for (let i = 0; i < ordered.length; i += batchSize) {
+    chunks.push(ordered.slice(i, i + batchSize));
+  }
+  return chunks;
+}
+
+function filterTargetsByPages(targets, pages) {
+  const allowed = new Set((pages || []).map((p) => Number(p)));
+  return (targets || []).filter((target) => allowed.has(getTargetPage(target)));
+}
+
+function resolveTargetedRecoveryBatchSize(payload, initialPayload) {
+  const raw = payload?.targetedRecoveryMaxPagesPerBatch
+    || payload?.targeted_recovery_max_pages_per_batch
+    || initialPayload?.targeted_recovery_max_pages_per_batch
+    || initialPayload?.runtime?.targeted_recovery_max_pages_per_batch
+    || initialPayload?.parser_contract?.targeted_recovery_max_pages_per_batch
+    || 12;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 12;
+  return Math.min(Math.max(1, Math.floor(parsed)), 12);
+}
+
+function buildTargetedRecoveryBasePayload(finalPreliminary, doclingForParser, initialPayload) {
+  return {
+    version: RELEASE_VERSION,
+    mode: 'targeted_recovery',
+    column_maps: doclingForParser?.tables || {},
+    structured_tables: doclingForParser || {},
+    document_learning_profile: finalPreliminary?.meta?.performance?.document_learning_profile || {},
+    description_registry: buildDescriptionRegistryFromFinal(finalPreliminary),
+    apply_confidence_min: 0.90,
+    parser_contract: {
+      ...(initialPayload?.parser_contract || {}),
+      targeted_recovery: true,
+      targeted_recovery_batched: true,
+      respect_document_column_order: true,
+      profile_aware_broken_line_recovery: true
+    },
+  };
+}
+
+function buildTargetedRecoveryUnresolved(targets, reason, error = null) {
+  return (targets || []).map((target) => ({
+    ...target,
+    unresolved: true,
+    reason,
+    error: error ? { code: error?.code || 'targeted_recovery_batch_failed', message: error?.message || String(error) } : undefined
+  }));
+}
+
 async function runTargetedRecoveryIfNeeded(pdfPath, finalPreliminary, compositionsStage, doclingForParser, payload, initialPayload, fileMeta) {
-  const targets = collectTargetedRecoveryTargets(finalPreliminary);
+  const targets = collectTargetedRecoveryTargets(finalPreliminary, initialPayload);
   if (!targets.length || initialPayload?.normalizer_targeted_recovery_enabled === false) {
     return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: false, reason: 'no_targets', targets: 0 } };
   }
-  const pages = [...new Set(targets.map((t) => Number(t.page)).filter((p) => p > 0))].sort((a, b) => a - b);
+  const pages = [...new Set(targets.map((t) => getTargetPage(t)).filter((p) => p > 0))].sort((a, b) => a - b);
   if (!pages.length) return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: false, reason: 'no_target_pages', targets: targets.length } };
-  let targetPath = null;
-  try {
-    const { targetBuffer, targetPath: generatedPath, targetMeta } = await buildSelectedPagesPdfBufferFromPath(pdfPath, pages);
-    targetPath = generatedPath;
-    const recoveryPayload = {
-      version: RELEASE_VERSION,
-      mode: 'targeted_recovery',
-      page_map: targetMeta.page_map || {},
-      targeted_recovery_pdf: targetMeta,
-      targets,
-      column_maps: doclingForParser?.tables || {},
-      structured_tables: doclingForParser || {},
-      document_learning_profile: finalPreliminary?.meta?.performance?.document_learning_profile || {},
-      description_registry: buildDescriptionRegistryFromFinal(finalPreliminary),
-      apply_confidence_min: 0.90,
-      parser_contract: { ...(initialPayload?.parser_contract || {}), targeted_recovery: true, respect_document_column_order: true, profile_aware_broken_line_recovery: true },
-    };
-    const mode = resolveNormalizerMode(payload, initialPayload);
-    if (mode !== 'api') {
-      const recovery = await callNormalizerRecoveryLocalPyodide(targetPath, recoveryPayload, { ...fileMeta, filename: 'normalizer-targeted-recovery.pdf' });
-      return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: true, mode: 'local_pyodide', ...recovery, target_pages: pages, target_count: targets.length } };
-    }
-    const endpoint = resolveNormalizerRecoveryEndpoint(payload, initialPayload);
-    if (!endpoint) {
-      return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: true, mode: 'api', status: 'skipped', reason: 'normalizer_api_endpoint_missing', patches: [], unresolved: [], target_pages: pages, target_count: targets.length } };
-    }
-    try {
-      const recovery = await callNormalizerRecoveryApiFromWorker(targetBuffer, recoveryPayload, endpoint, { ...fileMeta, filename: 'normalizer-targeted-recovery.pdf' });
-      return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: true, mode: 'api', ...recovery, target_pages: pages, target_count: targets.length } };
-    } catch (error) {
-      setState('normalizer-api-disabled-nonfatal', { code: error?.code || 'normalizer_recovery_api_failed', message: error?.message || String(error) });
-      return { final: finalPreliminary, compositions: compositionsStage, recovery: { attempted: true, mode: 'api', status: 'error_nonfatal', error: { code: error?.code || 'normalizer_recovery_api_failed', message: error?.message || String(error) }, patches: [], unresolved: [], target_pages: pages, target_count: targets.length } };
-    }
-  } finally {
-    try { if (targetPath) pyodide.FS.unlink(targetPath); } catch (_e) {}
+
+  const maxPagesPerBatch = resolveTargetedRecoveryBatchSize(payload, initialPayload);
+  const pageBatches = chunkPagesForTargetedRecovery(pages, maxPagesPerBatch);
+  const mode = resolveNormalizerMode(payload, initialPayload);
+  const endpoint = mode === 'api' ? resolveNormalizerRecoveryEndpoint(payload, initialPayload) : null;
+  const mergedRecovery = {
+    attempted: true,
+    mode: mode !== 'api' ? 'local_pyodide' : 'api',
+    status: 'ok',
+    batched: true,
+    max_pages_per_batch: maxPagesPerBatch,
+    target_pages: pages,
+    target_count: targets.length,
+    patches: [],
+    unresolved: [],
+    batches: []
+  };
+
+  if (mode === 'api' && !endpoint) {
+    return { final: finalPreliminary, compositions: compositionsStage, recovery: { ...mergedRecovery, status: 'skipped', reason: 'normalizer_api_endpoint_missing' } };
   }
+
+  const baseRecoveryPayload = buildTargetedRecoveryBasePayload(finalPreliminary, doclingForParser, initialPayload);
+
+  for (let batchIndex = 0; batchIndex < pageBatches.length; batchIndex++) {
+    const batchPages = pageBatches[batchIndex];
+    const batchTargets = filterTargetsByPages(targets, batchPages);
+    if (!batchTargets.length) continue;
+    let batchTargetPath = null;
+    setState('targeted-recovery-batch-started', { batch: batchIndex + 1, totalBatches: pageBatches.length, pages: batchPages, targets: batchTargets.length });
+    try {
+      const { targetBuffer, targetPath: generatedPath, targetMeta } = await buildSelectedPagesPdfBufferFromPath(pdfPath, batchPages, { maxPages: maxPagesPerBatch });
+      batchTargetPath = generatedPath;
+      const recoveryPayload = {
+        ...baseRecoveryPayload,
+        page_map: targetMeta.page_map || {},
+        targeted_recovery_pdf: targetMeta,
+        targets: batchTargets,
+        batch: { index: batchIndex + 1, total: pageBatches.length, original_pages: batchPages }
+      };
+      let recovery;
+      if (mode !== 'api') {
+        recovery = await callNormalizerRecoveryLocalPyodide(batchTargetPath, recoveryPayload, { ...fileMeta, filename: `normalizer-targeted-recovery-batch-${batchIndex + 1}.pdf` });
+      } else {
+        recovery = await callNormalizerRecoveryApiFromWorker(targetBuffer, recoveryPayload, endpoint, { ...fileMeta, filename: `normalizer-targeted-recovery-batch-${batchIndex + 1}.pdf` });
+      }
+      const patches = recovery?.patches || [];
+      const unresolved = recovery?.unresolved || [];
+      mergedRecovery.patches.push(...patches);
+      mergedRecovery.unresolved.push(...unresolved);
+      mergedRecovery.batches.push({
+        batch: batchIndex + 1,
+        pages: batchPages,
+        targets: batchTargets.length,
+        patches: patches.length,
+        unresolved: unresolved.length,
+        status: recovery?.status || 'ok',
+        summary: recovery?.summary || {}
+      });
+      setState('targeted-recovery-batch-finished', { batch: batchIndex + 1, pages: batchPages, targets: batchTargets.length, patches: patches.length, unresolved: unresolved.length });
+    } catch (error) {
+      const errorPayload = { code: error?.code || 'targeted_recovery_batch_failed', message: error?.message || String(error), detail: error?.detail || null };
+      mergedRecovery.status = mergedRecovery.status === 'ok' ? 'partial_nonfatal' : mergedRecovery.status;
+      mergedRecovery.unresolved.push(...buildTargetedRecoveryUnresolved(batchTargets, 'targeted_recovery_batch_failed', errorPayload));
+      mergedRecovery.batches.push({
+        batch: batchIndex + 1,
+        pages: batchPages,
+        targets: batchTargets.length,
+        status: 'error_nonfatal',
+        error: errorPayload
+      });
+      setState('targeted-recovery-batch-failed-nonfatal', { batch: batchIndex + 1, pages: batchPages, targets: batchTargets.length, error: errorPayload });
+    } finally {
+      try { if (batchTargetPath) pyodide.FS.unlink(batchTargetPath); } catch (_e) {}
+    }
+  }
+
+  if (!mergedRecovery.batches.length) {
+    return { final: finalPreliminary, compositions: compositionsStage, recovery: { ...mergedRecovery, status: 'skipped', reason: 'no_batch_targets' } };
+  }
+  mergedRecovery.batch_count = mergedRecovery.batches.length;
+  mergedRecovery.patch_count = mergedRecovery.patches.length;
+  mergedRecovery.unresolved_count = mergedRecovery.unresolved.length;
+  return { final: finalPreliminary, compositions: compositionsStage, recovery: mergedRecovery };
 }
 
 async function callDoclingApiFromWorker(buffer, initialPayload, endpoint, fileMeta = {}) {
@@ -1140,24 +1415,80 @@ async function runLovableFlowTask(payload) {
       throw buildWorkerError(final.error.code || 'PARSER_RUNTIME_ERROR', final.error.message || 'Falha ao consolidar resultados.', final.error.detail || null);
     }
 
+    if (initialPayload?.accuracy_profile?.enable_physical_evidence_index !== false) {
+      try {
+        setState('physical-evidence-index-started', { note: 'Executando índice físico, cascata de composição, quality gate, acurácia acionável e contrato final de outputs v61.0.57.' });
+        const physicalIndexedString = await callParserFunction('run_output_contract_final_flow_file_json', pdfPath, JSON.stringify(final || {}), JSON.stringify(options || {}));
+        const physicalIndexed = JSON.parse(physicalIndexedString || '{}');
+        if (physicalIndexed && physicalIndexed.status === 'error' && physicalIndexed.error) {
+          setState('physical-evidence-index-failed-nonfatal', { code: physicalIndexed.error.code, message: physicalIndexed.error.message });
+        } else {
+          final = physicalIndexed;
+          const pix = final?.meta?.performance?.physical_evidence_index || {};
+          const closureAfterPhysical = final?.meta?.performance?.line_certainty_closure_after_physical_index?.summary || {};
+          setState('physical-evidence-index-finished', { keys: pix.key_count || 0, occurrences: pix.occurrence_count || 0, closed100: closureAfterPhysical.closed_100 || 0, unresolved: closureAfterPhysical.unresolved || 0 });
+        }
+      } catch (e) {
+        setState('physical-evidence-index-failed-nonfatal', { message: String(e && e.message || e) });
+      }
+    }
+
     const preliminaryCorrection = final.documento_correcao || null;
-    const recoveryResult = await runTargetedRecoveryIfNeeded(pdfPath, final, compositions, doclingForParser, payload, initialPayload, fileMeta);
+    let recoveryResult = { final, compositions, recovery: { attempted: false, reason: 'not_started' } };
+    const maxRecoveryCycles = Math.max(1, Math.min(3, Number(initialPayload?.accuracy_profile?.max_targeted_recovery_cycles || initialPayload?.parser_contract?.max_targeted_recovery_cycles || 2)));
+    const recoveryCycles = [];
     let finalCompositionsStage = compositions;
-    if (recoveryResult?.recovery?.attempted && Number((recoveryResult?.recovery?.patches || []).length || 0) > 0) {
-      setState('targeted-recovery-commit-started', { received: (recoveryResult.recovery.patches || []).length });
-      const committedString = await callParserFunction('apply_targeted_recovery_json', JSON.stringify(final || {}), JSON.stringify(recoveryResult.recovery || {}), JSON.stringify(options || {}));
-      final = JSON.parse(committedString);
-      if (final && final.status === 'error' && final.error) {
-        throw buildWorkerError(final.error.code || 'TARGETED_RECOVERY_COMMIT_FAILED', final.error.message || 'Falha ao aplicar patches do targeted recovery.', final.error.detail || null);
+    for (let recoveryCycle = 1; recoveryCycle <= maxRecoveryCycles; recoveryCycle++) {
+      setState('targeted-recovery-cycle-started', { cycle: recoveryCycle, maxRecoveryCycles });
+      recoveryResult = await runTargetedRecoveryIfNeeded(pdfPath, final, finalCompositionsStage, doclingForParser, payload, initialPayload, fileMeta);
+      const patchCount = Number((recoveryResult?.recovery?.patches || []).length || 0);
+      recoveryCycles.push({ cycle: recoveryCycle, attempted: !!recoveryResult?.recovery?.attempted, patches: patchCount, unresolved: Number((recoveryResult?.recovery?.unresolved || []).length || 0), status: recoveryResult?.recovery?.status || 'unknown' });
+      if (recoveryResult?.recovery?.attempted && patchCount > 0) {
+        setState('targeted-recovery-commit-started', { cycle: recoveryCycle, received: patchCount });
+        const committedString = await callParserFunction('apply_targeted_recovery_json', JSON.stringify(final || {}), JSON.stringify(recoveryResult.recovery || {}), JSON.stringify(options || {}));
+        final = JSON.parse(committedString);
+        if (final && final.status === 'error' && final.error) {
+          throw buildWorkerError(final.error.code || 'TARGETED_RECOVERY_COMMIT_FAILED', final.error.message || 'Falha ao aplicar patches do targeted recovery.', final.error.detail || null);
+        }
+        const tr = final?.meta?.targeted_recovery || {};
+        setState('targeted-recovery-patches-committed', { cycle: recoveryCycle, received: tr.received || 0, committed: tr.committed || 0, verified: tr.verified || 0, failed: tr.failed || 0, reclosed: !!tr.line_certainty_reclosed_after_recovery });
+        if (!Number(tr.committed || 0)) break;
+      } else {
+        final.meta = { ...(final.meta || {}), targeted_recovery: recoveryResult?.recovery || { attempted: false } };
+        if (final.documento_correcao) {
+          final.documento_correcao.targeted_recovery = recoveryResult?.recovery || { attempted: false };
+          final.documento_correcao.correction_preliminary_resumo = preliminaryCorrection?.resumo || null;
+        }
+        break;
       }
-      const tr = final?.meta?.targeted_recovery || {};
-      setState('targeted-recovery-patches-committed', { received: tr.received || 0, committed: tr.committed || 0, verified: tr.verified || 0, failed: tr.failed || 0 });
-    } else {
-      final.meta = { ...(final.meta || {}), targeted_recovery: recoveryResult?.recovery || { attempted: false } };
-      if (final.documento_correcao) {
-        final.documento_correcao.targeted_recovery = recoveryResult?.recovery || { attempted: false };
-        final.documento_correcao.correction_preliminary_resumo = preliminaryCorrection?.resumo || null;
+    }
+    final.meta = { ...(final.meta || {}), targeted_recovery_cycles: recoveryCycles };
+    if (final.documento_correcao) final.documento_correcao.targeted_recovery_cycles = recoveryCycles;
+    try {
+      const perf = final?.meta?.performance || {};
+      const closureForOutputs = perf.line_certainty_closure_after_recovery || perf.line_certainty_closure_after_physical_index || perf.line_certainty_closure_engine || {};
+      const organizedString = await callParserFunction('organize_output_documents_json', JSON.stringify(final || {}), JSON.stringify(closureForOutputs || {}));
+      const organized = JSON.parse(organizedString || '{}');
+      if (!(organized && organized.status === 'error')) {
+        final = organized;
+        setState('output-documents-organized', { hasCorrection: !!final.documento_correcao, hasEvidence: !!final.documento_evidencias, hasEnrichment: !!final.documento_enriquecimento });
       }
+    } catch (e) {
+      setState('output-documents-organizer-failed-nonfatal', { message: String(e && e.message || e) });
+    }
+    try {
+      setState('mandatory-real-flow-recovery-started', { note: 'Recuperação física obrigatória pós-organizer: composição locking, ownership de orçamento e política anti-recalcular.' });
+      const repairedString = await callParserFunction('run_real_flow_mandatory_recovery_file_json', pdfPath, JSON.stringify(final || {}), JSON.stringify(options || {}));
+      const repaired = JSON.parse(repairedString || '{}');
+      if (repaired && repaired.status === 'error' && repaired.error) {
+        throw buildWorkerError(repaired.error.code || 'MANDATORY_REAL_FLOW_RECOVERY_FAILED', repaired.error.message || 'Falha na recuperação obrigatória final.', repaired.error.detail || null);
+      }
+      final = repaired;
+      const qg = final?.auditoria_final?.quality_gate || {};
+      setState('mandatory-real-flow-recovery-finished', { ok: !!qg.ok, blocking: qg.blocking_issue_count || 0 });
+    } catch (e) {
+      setState('mandatory-real-flow-recovery-failed', { message: String(e && e.message || e) });
+      throw e;
     }
     let accuracyReport = null;
     const expectedResult = initialPayload.expected_final_result || initialPayload.expectedFinalResult || initialPayload.golden_expected_result || null;
@@ -1186,12 +1517,12 @@ async function runLovableFlowTask(payload) {
     finalCompositionsStage = {
       status: 'ok',
       source: 'final_result_clean_compositions',
-      contract_version: 'v61.0.35-candidate-profile-consensus-engine',
+      contract_version: 'v61.0.74-release-integrity-and-diff-scan-hardening',
       composicoes: final?.composicoes || {},
       sicro_native: final?.documento_correcao?.sicro_native || null,
     };
     setState('done', { task: 'lovable-flow' });
-    return { status: 'ok', docling_response: doclingForParser, normalizer_used: refined.used, normalizer_report: doclingForParser?.metadata?.normalizer_report || null, docling_seed_pdf: seedMeta, budget_preview: preview, budget_stage: budget, compositions_stage: finalCompositionsStage, final_result: final, correction_document: final.documento_correcao || null, correction_preliminary: preliminaryCorrection };
+    return { status: 'ok', docling_response: doclingForParser, normalizer_used: refined.used, normalizer_report: doclingForParser?.metadata?.normalizer_report || null, docling_seed_pdf: seedMeta, budget_preview: preview, budget_stage: budget, compositions_stage: finalCompositionsStage, final_result: final, correction_document: final.documento_correcao || null, evidence_document: final.documento_evidencias || null, enrichment_document: final.documento_enriquecimento || null, correction_preliminary: preliminaryCorrection };
   } finally {
     try { if (seedPath) pyodide.FS.unlink(seedPath); } catch (_e) {}
     try { pyodide.FS.unlink(pdfPath); } catch (_e) {}

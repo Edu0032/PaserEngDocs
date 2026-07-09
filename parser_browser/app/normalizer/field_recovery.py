@@ -13,8 +13,10 @@ from app.parser.description_ownership_resolver import (
     cell_occupancy_ratio,
     looks_complete_by_cell_occupancy,
 )
+from app.parser.field_patch_validators import candidate_kind, normalize_field_name, validate_patch_candidate
+from app.parser.numeric_constraint_solver import math_triplet_status
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _target_family(target: Dict[str, Any] | None) -> str:
@@ -462,7 +464,7 @@ def _choose_best_candidate(target: Dict[str, Any], candidates: List[Dict[str, An
                 return best
     # Safety first: when the current/target-line extraction is already identical
     # or near-identical, never prefer a longer fragment hypothesis. This prevents
-    # pulling text from the previous/next budget item, e.g. ANP 01 in the real PDF.
+    # pulling text from the previous/next budget item, e.g. ABC 01 in the real PDF.
     issue_l = str(target.get("issue") or target.get("target_issue") or "").lower()
     # V30 still supports true upward broken-line recovery: when the caller has
     # explicitly marked a row as broken and a clean upward-only hypothesis exists,
@@ -537,6 +539,119 @@ def _confidence_for(target: Dict[str, Any], recovered: str, line: Dict[str, Any]
     return round(min(score, 0.98), 3)
 
 
+
+def _canonical_for_target_field(field: str, family: str) -> str:
+    f = normalize_field_name(field)
+    if f == "especificacao":
+        return "especificacao" if family == "budget" else "descricao"
+    if f == "descricao":
+        return "descricao" if family != "budget" else "especificacao"
+    aliases = {
+        "custo_unitario_com_bdi": "custo_unitario_com_bdi",
+        "custo_unitario_sem_bdi": "custo_unitario_sem_bdi",
+        "custo_parcial": "custo_parcial",
+        "custo_total": "custo_total",
+        "valor_unit": "valor_unit",
+        "total": "total",
+        "quant": "quant",
+        "und": "und",
+    }
+    return aliases.get(f, f)
+
+
+def _band_for_target_field(table: Dict[str, Any], field: str, family: str, line: Dict[str, Any] | None = None) -> Tuple[float | None, float | None, str]:
+    canonical = _canonical_for_target_field(field, family)
+    x0, x1 = _column_band(table, canonical)
+    if x0 is None and canonical == "especificacao":
+        x0, x1 = _column_band(table, "descricao")
+    if x0 is None and canonical == "descricao":
+        x0, x1 = _column_band(table, "especificacao")
+    return x0, x1, canonical
+
+
+def _tokens_in_band(line: Dict[str, Any], x0: float | None, x1: float | None) -> List[Dict[str, Any]]:
+    out = []
+    for w in list((line or {}).get("words") or []):
+        wx0 = _as_float(w.get("x0")); wx1 = _as_float(w.get("x1"))
+        if wx0 is None or wx1 is None:
+            continue
+        center = (wx0 + wx1) / 2.0
+        if x0 is not None and center < x0 - 1.5:
+            continue
+        if x1 is not None and center > x1 + 1.5:
+            continue
+        out.append(w)
+    return out
+
+
+def _field_candidates_from_line(line: Dict[str, Any], field: str, x0: float | None, x1: float | None, *, context: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    kind = candidate_kind(field)
+    words = _tokens_in_band(line, x0, x1)
+    texts = [_clean(w.get("text")) for w in words if _clean(w.get("text"))]
+    joined = _clean(" ".join(texts))
+    raw_candidates: List[str] = []
+    if kind == "unit":
+        raw_candidates.extend(texts)
+        if joined:
+            raw_candidates.append(joined)
+    elif kind in {"quantity", "money"}:
+        for token in texts:
+            raw_candidates.extend(re.findall(r"-?\d{1,3}(?:\.\d{3})*(?:,\d+)?|-?\d+(?:,\d+)?", token))
+        if joined:
+            raw_candidates.extend(re.findall(r"-?\d{1,3}(?:\.\d{3})*(?:,\d+)?|-?\d+(?:,\d+)?", joined))
+    else:
+        if joined:
+            raw_candidates.append(joined)
+    out=[]; seen=set()
+    for raw in raw_candidates:
+        validation = validate_patch_candidate(field, raw, {}, context or {})
+        if not validation.get("ok"):
+            continue
+        value = _clean(validation.get("normalized", raw))
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        out.append({"value": value, "validation": validation, "source_text": joined, "tokens": texts})
+    return out
+
+
+def _math_supports_candidate(target: Dict[str, Any], field: str, value: str) -> Dict[str, Any]:
+    row = dict(target.get("row_snapshot") or {})
+    if not row:
+        return {"status": "not_available"}
+    f = normalize_field_name(field)
+    row[f] = value
+    family = str(target.get("family") or target.get("table_family") or "").lower()
+    if family in {"budget", "orcamento", "orcamento_sintetico"}:
+        return math_triplet_status(row, quantity_field="quant", unit_field="custo_unitario_com_bdi", total_field="custo_parcial")
+    return math_triplet_status(row, quantity_field="quant", unit_field="valor_unit", total_field="total")
+
+
+def _recover_non_description_field(target: Dict[str, Any], line: Dict[str, Any], table: Dict[str, Any], family: str, *, context: Dict[str, Any] | None = None) -> Dict[str, Any] | None:
+    field = normalize_field_name(target.get("field") or "")
+    if candidate_kind(field) == "description":
+        return None
+    x0, x1, canonical = _band_for_target_field(table, field, family, line)
+    candidates = _field_candidates_from_line(line, field, x0, x1, context=context)
+    if not candidates:
+        return None
+    scored = []
+    for cand in candidates:
+        score = 0.76
+        if x0 is not None:
+            score += 0.08
+        math_status = _math_supports_candidate(target, field, cand["value"])
+        if math_status.get("ok") is True:
+            score += 0.12
+        elif math_status.get("status") == "missing_values":
+            score += 0.02
+        elif math_status.get("ok") is False:
+            score -= 0.12
+        scored.append({**cand, "confidence": round(max(0.0, min(score, 0.98)), 3), "math_status": math_status, "column_band": {"canonical": canonical, "x0": x0, "x1": x1}})
+    scored.sort(key=lambda c: float(c.get("confidence") or 0), reverse=True)
+    return scored[0]
+
+
 def recover_fields(pdf_bytes: bytes, payload: Dict[str, Any]) -> Dict[str, Any]:
     started = time.perf_counter()
     payload = dict(payload or {})
@@ -574,6 +689,44 @@ def recover_fields(pdf_bytes: bytes, payload: Dict[str, Any]) -> Dict[str, Any]:
             continue
         codigo_bbox = _match_bbox(line, codigo)
         banco_bbox = _match_bbox(line, banco) if banco else None
+        target_field = normalize_field_name(target.get("field") or _description_field_for(target))
+        if candidate_kind(target_field) != "description":
+            best_value = _recover_non_description_field(target, line, table, family, context=payload)
+            if best_value and float(best_value.get("confidence") or 0.0) >= float(payload.get("apply_confidence_min") or 0.85):
+                patches.append({
+                    "target_id": target.get("target_id"),
+                    "path": target.get("path") or [],
+                    "collection": target.get("collection"),
+                    "comp_key": target.get("comp_key") or target.get("key"),
+                    "row_group": target.get("row_group"),
+                    "row_index": target.get("row_index"),
+                    "field": target_field,
+                    "value": best_value.get("value"),
+                    "previous_value": _clean(target.get("current_value") or ""),
+                    "confidence": round(float(best_value.get("confidence") or 0.0), 3),
+                    "applied_by_default": True,
+                    "source": "deep_area_sweep_executor",
+                    "page": original_page,
+                    "local_page": local_page,
+                    "codigo": codigo,
+                    "banco": banco,
+                    "target_issue": str(target.get("issue") or target.get("reason") or "line_certainty_unclosed_field"),
+                    "evidence": {
+                        "line_text": line.get("text", ""),
+                        "codigo_bbox": codigo_bbox,
+                        "banco_bbox": banco_bbox,
+                        "target_family": family,
+                        "candidate_strategy": "target_line_column_band",
+                        "column_band": best_value.get("column_band"),
+                        "source_text": best_value.get("source_text"),
+                        "tokens": best_value.get("tokens"),
+                        "validation": best_value.get("validation"),
+                        "math_status": best_value.get("math_status"),
+                    },
+                })
+            else:
+                unresolved.append({**target, "reason": "non_description_candidate_not_found_or_low_confidence", "candidate": best_value, "local_page": local_page})
+            continue
         # Dynamic fallback: if the schema band is absent, capture after banco/code until next schema boundary.
         fx0 = desc_x0
         fx1 = desc_x1

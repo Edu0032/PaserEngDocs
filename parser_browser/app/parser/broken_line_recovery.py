@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from app.core.schemas import BlocoComposicao, Composicoes, LinhaComposicao, OrcamentoItem, OrcamentoSintetico
 from app.parser.code_value_classifier import clean_text, norm_text, looks_like_ptbr_decimal_or_money
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 TRUNCATION_TAILS = {"DE", "DA", "DO", "DAS", "DOS", "PARA", "COM", "E", "EM", "A", "O", "AO", "À", "AS"}
 POLLUTION_TERMS = [

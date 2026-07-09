@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/input/base_config_overlay.schema.json",
+  "title": "Admin/User base_config overlay",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "knowledge_base": {"type": "object"},
+    "bank_aliases": {"type": "object"},
+    "units": {"type": "object"},
+    "custom_bank_profiles": {"type": "object"},
+    "accepted_enrichment_suggestions": {"type": "object"}
+  }
+}

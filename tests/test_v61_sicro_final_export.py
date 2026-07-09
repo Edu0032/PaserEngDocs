@@ -52,13 +52,8 @@ def test_final_export_preserves_sicro_columns_and_splits_family_contract():
     principal = block['principal']
     assert principal['codigo'] == '1107892'
     assert principal['banco'] == 'SICRO3'
-    assert principal['banco_canonico'] == 'SICRO'
-    assert principal['tipo'] == 'Composição'
-    assert principal['descricao'] == 'Concreto fck = 20 MPa'
-    assert principal['und'] == 'm³'
-    assert principal['quant'] == '1,0000000'
-    assert principal['valor_unit'] == '678,85'
-    assert principal['total'] == '678,85'
+    for forbidden in ('banco_canonico', 'tipo', 'descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna'):
+        assert forbidden not in principal
     assert principal['servico'] == 'Concreto fck = 20 MPa'
     assert principal['unidade'] == 'm³'
     assert principal['quantidade'] == '1,0000000'
@@ -66,13 +61,13 @@ def test_final_export_preserves_sicro_columns_and_splits_family_contract():
     assert principal['custo_total'] == '678,85'
     assert 'composicoes_auxiliares' not in block and 'insumos' not in block
     assert 'detalhes' not in block
-    assert set(block['sicro']) == {'secoes'}
-    eq = block['sicro']['secoes']['A']['linhas'][0]
-    assert eq['descricao'] == 'Balança plataforma digital'
+    assert 'sicro' not in block
+    eq = block['secoes']['A']['linhas'][0]
+    assert 'descricao' not in eq
     assert eq['equipamento'] == 'Balança plataforma digital'
     assert eq['quantidade'] == '1,0000000'
-    assert eq['valor_unit'] == '1,268'
-    assert eq['total'] == '1,268'
+    assert 'valor_unit' not in eq
+    assert 'total' not in eq
     assert eq['custo_operacional']['operativa'] == '1,2680'
     assert eq['custo_horario'] == '1,2680'
     text = str(block)

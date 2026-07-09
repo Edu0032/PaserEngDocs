@@ -26,6 +26,9 @@ class OrcamentoItem(BaseModel):
     custo_unitario_sem_bdi: Optional[str] = None
     custo_unitario_com_bdi: Optional[str] = None
     custo_parcial: Optional[str] = None
+
+    # internal extraction evidence; pruned from final public output after use
+    detalhes: Dict[str, Any] = Field(default_factory=dict)
     filhos: List["OrcamentoItem"] = Field(default_factory=list)
 
 

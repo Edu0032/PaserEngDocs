@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable
 from app.config.knowledge_base import list_units
 from app.core.schemas import Composicoes, OrcamentoSintetico
 
-VERSION = 'v61.0.35-candidate-profile-consensus-engine'
+VERSION = 'v61.0.75-correction-output-contract-and-review-index'
 
 
 def _clean(value: Any) -> str:

@@ -6,6 +6,7 @@ from app.core.pdf_session import PdfDocumentSession
 from app.core.performance import PerformanceTracker
 from app.core.pdf_text import extract_pages_text, normalize_lines
 from app.core.money import parse_ptbr_number
+from app.core.numeric_fidelity import numeric_source
 from app.core.sanitizer import (
     break_glued_markers,
     sanitize_lines,
@@ -624,6 +625,12 @@ def _parse_item_block(
         "custo_unitario_sem_bdi": s_bdi,
         "custo_unitario_com_bdi": c_bdi,
         "custo_parcial": parcial,
+        "detalhes": {"numeric_source": {
+            "quant": numeric_source(quant),
+            "custo_unitario_sem_bdi": numeric_source(s_bdi),
+            "custo_unitario_com_bdi": numeric_source(c_bdi),
+            "custo_parcial": numeric_source(parcial),
+        }},
         "reconstruido_multilinha": bool(prefix_lines or suffix_lines),
         "fragmentos_pre": list(prefix_lines),
         "fragmentos_pos": list(suffix_lines),
@@ -1507,6 +1514,12 @@ def _try_parse_item_row(text: str, strip_inline_from: List[str], dynamic_markers
         "custo_unitario_sem_bdi": s_bdi,
         "custo_unitario_com_bdi": c_bdi,
         "custo_parcial": parcial,
+        "detalhes": {"numeric_source": {
+            "quant": numeric_source(quant),
+            "custo_unitario_sem_bdi": numeric_source(s_bdi),
+            "custo_unitario_com_bdi": numeric_source(c_bdi),
+            "custo_parcial": numeric_source(parcial),
+        }},
     }
 def _validate_item_math(
     item_node: dict,

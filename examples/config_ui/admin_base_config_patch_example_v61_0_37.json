@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "scope": "admin_global_base_config_patch",
+    "description": "Exemplo de patch que somente o administrador pode publicar. Após publicar, ele é espelhado para todos os usuários."
+  },
+  "knowledge_base": {
+    "units": {
+      "global": ["M", "M²", "M³", "UN", "KG", "T", "M3XKM"]
+    },
+    "header_aliases": {
+      "global": {
+        "CÓDIGO": "codigo",
+        "FONTE": "fonte",
+        "ESPECIFICAÇÕES DOS SERVIÇOS": "descricao"
+      }
+    }
+  },
+  "quality_gate": {
+    "numeric_fidelity": {"enabled": true},
+    "public_text_pollution": {"enabled": true}
+  }
+}

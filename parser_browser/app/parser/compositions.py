@@ -14,6 +14,7 @@ except Exception:  # pragma: no cover - opcional no modo browser
 from pypdf import PdfReader
 
 from app.core.money import parse_ptbr_number
+from app.core.numeric_fidelity import numeric_source
 from app.core.pdf_session import PdfDocumentSession
 from app.core.sanitizer import normalize_service_text
 from app.core.context_markers import build_dynamic_markers
@@ -1739,18 +1740,29 @@ def _make_line(cells: List[str], dynamic_markers: List[str] | None = None, runti
     tipo = _sanitize_tipo(cells[4]) if len(cells) >= 5 else ""
     if _looks_like_unit_token(tipo):
         tipo = ""
-    und = _clean(cells[5]) if len(cells) >= 6 else ""
-    quant = parse_ptbr_number(_clean(cells[6])) if len(cells) >= 7 else None
-    valor_unit = parse_ptbr_number(_clean(cells[7])) if len(cells) >= 8 else None
-    total = parse_ptbr_number(_clean(cells[8])) if len(cells) >= 9 else None
+    und_raw = _clean(cells[5]) if len(cells) >= 6 else ""
+    quant_raw = _clean(cells[6]) if len(cells) >= 7 else ""
+    valor_unit_raw = _clean(cells[7]) if len(cells) >= 8 else ""
+    total_raw = _clean(cells[8]) if len(cells) >= 9 else ""
+    und = und_raw
+    quant = parse_ptbr_number(quant_raw) if quant_raw else None
+    valor_unit = parse_ptbr_number(valor_unit_raw) if valor_unit_raw else None
+    total = parse_ptbr_number(total_raw) if total_raw else None
 
     tail_info = _choose_tail_candidate_from_text(" ".join(_clean(c) for c in cells if _clean(c)))
     selected_tail = tail_info.get("selected") or {}
+    selected_raw = list(selected_tail.get("raw_tokens") or [])
     if not und or quant is None or valor_unit is None or total is None:
         und = und or str(selected_tail.get("und") or "")
-        quant = quant if quant is not None else selected_tail.get("quant")
-        valor_unit = valor_unit if valor_unit is not None else selected_tail.get("valor_unit")
-        total = total if total is not None else selected_tail.get("total")
+        if quant is None and selected_tail.get("quant") is not None:
+            quant = selected_tail.get("quant")
+            quant_raw = selected_raw[1] if len(selected_raw) >= 4 else quant_raw
+        if valor_unit is None and selected_tail.get("valor_unit") is not None:
+            valor_unit = selected_tail.get("valor_unit")
+            valor_unit_raw = selected_raw[2] if len(selected_raw) >= 4 else valor_unit_raw
+        if total is None and selected_tail.get("total") is not None:
+            total = selected_tail.get("total")
+            total_raw = selected_raw[3] if len(selected_raw) >= 4 else total_raw
         if not und or quant is None or valor_unit is None or total is None:
             und2, quant2, valor_unit2, total2 = _extract_tail_values(cells)
             und = und or und2
@@ -1774,6 +1786,15 @@ def _make_line(cells: List[str], dynamic_markers: List[str] | None = None, runti
         total=total,
         banco_coluna=_canon_bank(bank, runtime=runtime),
     )
+    numeric_src = {}
+    if quant_raw:
+        numeric_src["quant"] = numeric_source(quant_raw)
+    if valor_unit_raw:
+        numeric_src["valor_unit"] = numeric_source(valor_unit_raw)
+    if total_raw:
+        numeric_src["total"] = numeric_source(total_raw)
+    if numeric_src:
+        line.detalhes["numeric_source"] = numeric_src
     if tail_info.get("status") not in {"consistent", "missing"}:
         line.detalhes["tail_parse"] = _tail_info_payload(tail_info)
     return line, _normalize_ref_key(line.codigo, line.banco)

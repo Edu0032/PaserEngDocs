@@ -27,7 +27,7 @@ from app.parser.description_ownership_resolver import (
     choose_clean_subcandidate_from_current,
 )
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 DESCRIPTION_FIELDS = {"descricao", "especificacao"}
 CONNECTOR_TAILS = {"DE", "DA", "DO", "DAS", "DOS", "PARA", "COM", "E", "EM", "A", "O", "AO"}
@@ -416,7 +416,7 @@ def _attach_neighbor_contexts(rows: List[RowRef], registry: Dict[str, EvidenceCa
     """Attach previous/next budget leaf evidence to budget rows.
 
     This is the lightweight cross-table ownership check requested for cases such
-    as ANP 01: if a candidate contains descriptions already confirmed for the
+    as ABC 01: if a candidate contains descriptions already confirmed for the
     item above/below, it is probably not owned by the target row.
     """
     budget_rows = [r for r in rows if r.family == "budget"]

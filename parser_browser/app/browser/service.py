@@ -71,6 +71,9 @@ class BrowserParseOptions:
     geometry_evidence: Dict[str, Any] | None = None
     docling_seed_pdf: Dict[str, Any] | None = None
     user_base_config: Dict[str, Any] | None = None
+    user_base_config_overlay: Dict[str, Any] | None = None
+    admin_base_config: Dict[str, Any] | None = None
+    admin_base_config_overlay: Dict[str, Any] | None = None
 
 
 REQUIRED_BROWSER_OPTION_FIELDS = (
@@ -320,7 +323,38 @@ def _runtime_for_browser(config_all: dict, opts: BrowserParseOptions) -> dict:
 
 
 
-def _finalize_result(result: dict, *, config_all: dict, runtime_cfg: dict, opts: BrowserParseOptions, elapsed_ms: float, mode: str = 'browser') -> dict:
+def _finalize_result(result: dict, *, config_all: dict, runtime_cfg: dict, opts: BrowserParseOptions, elapsed_ms: float, mode: str = 'browser', pdf_bytes: bytes | None = None) -> dict:
+    if pdf_bytes:
+        try:
+            from app.parser.integrity_orchestrator import run_final_integrity_orchestrator_bytes
+            result, integrity_report = run_final_integrity_orchestrator_bytes(
+                pdf_bytes,
+                result,
+                {
+                    'ranges': {'compositions': {'start': opts.composicoes_inicio, 'end': opts.composicoes_fim}},
+                    'performance_profile': opts.performance_profile,
+                    'mandatory_targeted': True,
+                },
+                perf_key='finalize_integrity_orchestrator',
+                prune_runtime=False,
+            )
+            result.setdefault('meta', {}).setdefault('performance', {})['finalize_integrity_orchestrator_summary'] = integrity_report
+        except Exception as _tail_exc:
+            # A mandatory integrity stage is not allowed to fail silently.  Keep
+            # the partial JSON available for diagnosis, but block final ok.
+            issue = {
+                'code': 'finalize_integrity_orchestrator_failed',
+                'severity': 'blocking',
+                'blocks_json_ok': True,
+                'message': str(_tail_exc),
+                'exception_type': _tail_exc.__class__.__name__,
+            }
+            result.setdefault('documento_correcao', {}).setdefault('warnings', []).append({'tipo': 'finalize_integrity_orchestrator_failed', **issue})
+            gate = result.setdefault('auditoria_final', {}).setdefault('quality_gate', {})
+            gate['ok'] = False
+            gate['blocking_issue_count'] = int(gate.get('blocking_issue_count') or 0) + 1
+            gate.setdefault('issues', []).append(issue)
+            result['status'] = 'quality_gate_failed'
     result = compact_parse_result(result)
     result = prune_runtime_only_fields(result)
     strict = bool((runtime_cfg.get('validation') or {}).get('strict', False)) if opts.strict_validation is None else bool(opts.strict_validation)
@@ -378,14 +412,30 @@ def _finalize_result(result: dict, *, config_all: dict, runtime_cfg: dict, opts:
 
 
 def _resolve_config_all(config_all: dict | None, opts: BrowserParseOptions) -> dict:
-    admin_config = config_all or load_parser_config()
-    user_overlay = opts.user_base_config if isinstance(opts.user_base_config, dict) else None
-    if user_overlay:
+    embedded_config = config_all or load_parser_config()
+    # Admin config can be a full copy of base_config with additions, or a small
+    # overlay.  It is persisted by Lovable/platform outside the zip and merged
+    # in memory for this run.
+    admin_overlay = None
+    if isinstance(opts.admin_base_config, dict) and opts.admin_base_config:
+        admin_overlay = opts.admin_base_config
+    elif isinstance(opts.admin_base_config_overlay, dict) and opts.admin_base_config_overlay:
+        admin_overlay = opts.admin_base_config_overlay
+
+    user_overlay = None
+    if isinstance(opts.user_base_config, dict) and opts.user_base_config:
+        user_overlay = opts.user_base_config
+    elif isinstance(opts.user_base_config_overlay, dict) and opts.user_base_config_overlay:
+        user_overlay = opts.user_base_config_overlay
+
+    if admin_overlay or user_overlay:
         validation = validate_user_base_config_overlay(user_overlay)
-        merged = merge_base_config_layers(admin_config, user_overlay)
+        merged = merge_base_config_layers(admin_overlay, user_overlay, embedded_config=embedded_config)
         merged.setdefault('metadata', {})['user_base_config_validation'] = validation
+        merged['metadata']['admin_base_config_overlay_present'] = bool(admin_overlay)
+        merged['metadata']['user_base_config_overlay_present'] = bool(user_overlay)
         return merged
-    return admin_config
+    return embedded_config
 
 def parse_document_browser(
     pdf_bytes: bytes,
@@ -406,7 +456,7 @@ def parse_document_browser(
     started = time.perf_counter()
     result = parse_document(pdf_bytes=pdf_bytes, ranges=ranges, config=runtime_cfg, context=context)
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
-    result = _finalize_result(result, config_all=config_all, runtime_cfg=runtime_cfg, opts=opts, elapsed_ms=elapsed_ms, mode='browser')
+    result = _finalize_result(result, config_all=config_all, runtime_cfg=runtime_cfg, opts=opts, elapsed_ms=elapsed_ms, mode='browser', pdf_bytes=pdf_bytes)
     result['meta']['input_metadata']['size_bytes'] = len(pdf_bytes)
     return result
 

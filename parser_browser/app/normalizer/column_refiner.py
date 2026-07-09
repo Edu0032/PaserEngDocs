@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 from app.normalizer.geometry_extractor import extract_page_geometry, _clean, _norm
 from app.normalizer.sicro_section_maps import build_sicro_section_maps
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _as_float(value: Any) -> float | None:

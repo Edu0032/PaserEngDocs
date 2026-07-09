@@ -22,7 +22,7 @@ def _public_section_row(section, line):
     }
     exported = prune_runtime_only_fields(payload)['composicoes']['sicro']
     block = (exported.get('principais') or {}).get('1107892|SICRO') or (exported.get('auxiliares_globais') or {})['1107892|SICRO']
-    return block['sicro']['secoes'][section]['linhas'][0]
+    return block['secoes'][section]['linhas'][0]
 
 
 def test_sicro_code_bank_inversion_is_detected_by_pattern():
@@ -55,8 +55,8 @@ def test_sicro_material_preserves_preco_unitario_and_decimal_scale_as_public_tex
     assert row['preco_unitario'] == '9,3695'
     assert row.get('custo') == '7,9309'
     assert 'row_uid' not in row and 'tipo_status' not in row
-    assert row['descricao'].startswith('Aditivo plastificante')
-    assert row['valor_unit'] == '9,3695'
+    assert 'descricao' not in row
+    assert 'valor_unit' not in row
 
 
 def test_sicro_atividade_auxiliar_preserves_zeros():

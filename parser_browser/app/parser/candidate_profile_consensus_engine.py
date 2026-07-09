@@ -36,7 +36,7 @@ from app.parser.selective_field_reparse_executor import (
     is_confirmed_candidate,
 )
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 DESCRIPTION_FIELDS = {"descricao", "especificacao"}
 
 

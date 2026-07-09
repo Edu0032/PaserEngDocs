@@ -18,7 +18,7 @@ from app.parser.broken_line_recovery import (
     text_quality_score,
 )
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _all_budget_items(nodes: Iterable[OrcamentoItem]) -> Iterable[OrcamentoItem]:

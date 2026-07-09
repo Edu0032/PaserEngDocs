@@ -1,6 +1,6 @@
 {
-  "_schema_version": "v61.0.35-candidate-profile-consensus-engine",
+  "_schema_version": "v61.0.74-release-integrity-and-diff-scan-hardening",
   "project": {
-    "current_release": "v61.0.35-candidate-profile-consensus-engine"
+    "current_release": "v61.0.74-release-integrity-and-diff-scan-hardening"
   }
 }

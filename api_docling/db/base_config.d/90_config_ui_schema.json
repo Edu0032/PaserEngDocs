@@ -1,6 +1,6 @@
 {
   "config_ui": {
-    "version": "v61.0.35-candidate-profile-consensus-engine",
+    "version": "v61.0.39-deep-area-sweep-iterative-closure",
     "tabs": [
       "Bancos",
       "Unidades",
@@ -14,6 +14,63 @@
       "Consenso de perfis"
     ],
     "supports_user_base_config_overlay": true,
-    "supports_custom_table_builder": true
+    "supports_custom_table_builder": true,
+    "schema_kind": "admin_user_config_interface_contract",
+    "admin_interface": {
+      "editable": true,
+      "audience": "administrator",
+      "scope": "global_base_config",
+      "description": "Painel do administrador modifica regras globais do parser. Alterações são espelhadas para todos os usuários após publicação.",
+      "editable_modules": [
+        "units_common",
+        "banks_global",
+        "code_patterns_global",
+        "header_aliases_global",
+        "budget_schema",
+        "sinapi_like_schema",
+        "sicro_output_contract",
+        "recheck_rules",
+        "quality_gate",
+        "docling_cache_policy",
+        "payload_contract",
+        "config_ui_schema"
+      ],
+      "requires_admin_review": true,
+      "publish_strategy": "versioned_global_base_config"
+    },
+    "user_interface": {
+      "editable": true,
+      "audience": "normal_user",
+      "scope": "user_base_config_overlay",
+      "description": "Usuário normal não altera regras globais. Ele cria perfis personalizados de bancos/tabelas, aliases locais e sugestões de unidades.",
+      "editable_modules": [
+        "custom_bank_profiles.profiles",
+        "knowledge_base.header_aliases.user",
+        "knowledge_base.units.user_suggestions"
+      ],
+      "custom_table_builder": {
+        "enabled": true,
+        "ui_mode": "spreadsheet_like_grid",
+        "required_column_fields": [
+          "header",
+          "canonical"
+        ],
+        "optional_column_fields": [
+          "type",
+          "role",
+          "ignore_in_domain",
+          "include_in_final_json",
+          "group",
+          "first_row_text",
+          "sample_text"
+        ],
+        "supported_families": [
+          "sinapi_like",
+          "budget_like",
+          "sectioned"
+        ],
+        "parser_consumption": "deep_merge_admin_then_user_before_parse"
+      }
+    }
   }
 }

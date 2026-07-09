@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "scope": "user_base_config_overlay",
+    "description": "Exemplo de estrutura criada por usuário normal na interface tipo planilha. Não altera regras globais do administrador."
+  },
+  "custom_bank_profiles": {
+    "profiles": {
+      "usuario_tabela_propria_001": {
+        "display_name": "Tabela própria do usuário",
+        "family": "sinapi_like",
+        "enabled": true,
+        "templates": [
+          {
+            "id": "composicao_padrao_usuario",
+            "type": "flat_table",
+            "header_order": ["controle_linha", "codigo", "banco", "descricao", "tipo", "und", "quant", "valor_unit", "total"],
+            "columns": [
+              {"header": "ITEM", "canonical": "controle_linha", "type": "control_column"},
+              {"header": "COD", "canonical": "codigo", "required": true},
+              {"header": "BASE", "canonical": "banco", "required": true},
+              {"header": "SERVIÇO", "canonical": "descricao", "required": true},
+              {"header": "TIPO", "canonical": "tipo", "ignore_in_domain": true, "include_in_final_json": false},
+              {"header": "UN", "canonical": "und"},
+              {"header": "QTD", "canonical": "quant"},
+              {"header": "V. UNIT", "canonical": "valor_unit"},
+              {"header": "TOTAL", "canonical": "total"}
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

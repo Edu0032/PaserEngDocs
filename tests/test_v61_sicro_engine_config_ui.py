@@ -18,7 +18,7 @@ CFG = json.loads((ROOT / 'parser_browser' / 'db' / 'base_config.json').read_text
 
 
 def test_base_config_has_ui_editable_knowledge_tree():
-    assert CFG['_schema_version'] == 'v61.0.35-candidate-profile-consensus-engine'
+    assert CFG['_schema_version'] == 'v61.0.39-deep-area-sweep-iterative-closure'
     assert 'config_ui' in CFG
     assert 'knowledge_bases' in CFG
     assert {'banks', 'units', 'numeric_profiles', 'sicro'}.issubset(CFG['knowledge_bases'])

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/output/evidence_document.schema.json",
+  "title": "evidence_document",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {"type": "string"},
+    "document_type": {"type": "string"},
+    "parser_version": {"type": "string"},
+    "version": {"type": "string"},
+    "purpose": {"type": "string"}
+  }
+}

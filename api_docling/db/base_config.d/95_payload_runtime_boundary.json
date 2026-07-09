@@ -1,0 +1,49 @@
+{
+  "lovable_contract": {
+    "payload_scope": "document_only",
+    "payload_allowed_categories": [
+      "document metadata",
+      "page ranges",
+      "docling seed page numbers",
+      "observed table headers",
+      "canonical header mapping",
+      "first row/sample text",
+      "document-specific noise/context hints"
+    ],
+    "runtime_config_scope": "base_config_and_worker_init",
+    "forbidden_payload_fields": [
+      "docling_api_url",
+      "docling_api_key",
+      "docling_api_key_header",
+      "docling_timeout_ms",
+      "normalizer_timeout_ms",
+      "normalizer_enabled",
+      "normalizer_mode",
+      "normalizer_api_key",
+      "normalizer_api_key_header",
+      "docling_seed_pdf_policy",
+      "bypass_cache",
+      "clear_docling_cache_before_run",
+      "targeted_recovery_max_pages_per_batch",
+      "request_timeout_ms",
+      "runtime",
+      "performance",
+      "output_options",
+      "parser_contract",
+      "base_id"
+    ],
+    "notes": [
+      "Lovable deve enviar somente informações extraídas ou inferidas do documento.",
+      "Endpoint, cache, timeout, política de mini-PDF, normalizer e targeted recovery são configurações da plataforma/base_config/runtime, não do payload do documento.",
+      "O documento_enriquecimento apenas sugere alterações para aprovação humana; ele nunca atualiza base_config automaticamente."
+    ]
+  },
+  "browser_mode": {
+    "source_archive_must_include_db": true,
+    "required_packaged_paths": [
+      "app/",
+      "db/base_config.json",
+      "db/base_config.d/"
+    ]
+  }
+}

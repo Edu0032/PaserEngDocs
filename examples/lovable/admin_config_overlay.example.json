@@ -1,0 +1,11 @@
+{
+  "knowledge_base": {
+    "units": {
+      "global_additions": ["M3XKM", "T.KM"]
+    }
+  },
+  "bank_aliases": {
+    "SICRO3": "SICRO",
+    "Próprio": "PROPRIO"
+  }
+}

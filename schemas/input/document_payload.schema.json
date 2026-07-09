@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/input/document_payload.schema.json",
+  "title": "Lovable document_payload",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["document", "ranges", "docling_seed_pages", "tables"],
+  "properties": {
+    "document": {"type": "object", "required": ["filename"], "properties": {"filename": {"type": "string"}, "page_count": {"type": "integer"}, "title": {"type": "string"}}},
+    "ranges": {"type": "object", "properties": {"budget": {"$ref": "#/$defs/pageRange"}, "compositions": {"$ref": "#/$defs/pageRange"}}},
+    "docling_seed_pages": {"type": "object", "properties": {"budget": {"type": "integer"}, "composition": {"type": "integer"}}},
+    "tables": {"type": "object", "properties": {"budget": {"$ref": "#/$defs/tablePayload"}, "composition": {"$ref": "#/$defs/tablePayload"}}}
+  },
+  "$defs": {
+    "pageRange": {"type": "object", "required": ["start", "end"], "properties": {"start": {"type": "integer"}, "end": {"type": "integer"}}},
+    "tablePayload": {"type": "object", "properties": {"observed_headers": {"type": "array", "items": {"type": "object", "required": ["canonical"], "properties": {"text": {"type": "string"}, "header_text": {"type": "string"}, "canonical": {"type": "string"}, "sample_text": {"type": "string"}, "first_row_text": {"type": "string"}}}}}}
+  }
+}

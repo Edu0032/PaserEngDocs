@@ -99,77 +99,107 @@ def _strip_runtime_keys(row: dict) -> dict:
 
 
 def _sicro_public_row(section: str, row: dict) -> dict:
-    """Non-destructive public SICRO row export.
+    """Export one native SICRO section row as read-only public data.
 
-    The native SICRO engine is authoritative.  This function therefore preserves
-    every domain column already present and only adds missing canonical aliases
-    needed by Lovable.  It removes runtime/debug keys, not columns extracted from
-    the PDF.
+    v61.0.58: Python must not cascade/recalculate SICRO section values from
+    referenced auxiliaries.  The native SICRO engine is the source of truth for
+    the printed values in each section row.  The D section relation is exported
+    only as metadata for Lovable to understand downstream impact chains; it must
+    never overwrite ``preco_unitario``/``custo``.
     """
+    if not isinstance(row, dict):
+        return {}
     original = dict(row or {})
-    working = apply_numeric_sources_to_row(dict(row or {}))
-    det = working.get('detalhes') if isinstance(working.get('detalhes'), dict) else {}
-    srcwrap = {'detalhes': {'numeric_source': det.get('numeric_source', {})}}
-    out = _strip_runtime_keys(original)
-    bank = out.get('banco') or out.get('banco_coluna') or original.get('banco') or original.get('banco_coluna') or 'SICRO'
-    out['banco'] = bank
-    out.setdefault('banco_canonico', _canon_bank_public(bank))
+    sec = str(section or '').upper()
+    det = original.get('detalhes') if isinstance(original.get('detalhes'), dict) else {}
+    src = det.get('numeric_source') if isinstance(det.get('numeric_source'), dict) else {}
 
-    def put_missing(key: str, value: Any) -> None:
-        if value not in (None, '', [], {}) and out.get(key) in (None, ''):
+    def numeric_text(*fields: str) -> Any:
+        for field in fields:
+            meta = src.get(field) if isinstance(src, dict) else None
+            if isinstance(meta, dict) and meta.get('source_text') not in (None, ''):
+                return str(meta.get('source_text')).strip()
+        return None
+
+    def pick(*values: Any) -> Any:
+        for value in values:
+            if value not in (None, '', [], {}):
+                return value
+        return None
+
+    def put(out: dict, key: str, *values: Any) -> None:
+        value = pick(*values)
+        if value not in (None, '', [], {}) and out.get(key) in (None, '', [], {}):
             out[key] = _format_ptbr_public_number(value)
 
-    if section == 'A':
-        put_missing('equipamento', original.get('equipamento') or original.get('descricao'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('custo_horario', original.get('custo_horario') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-        utilizacao = dict(out.get('utilizacao') or {}) if isinstance(out.get('utilizacao'), dict) else {}
+    bank = pick(original.get('banco'), original.get('fonte'), 'SICRO')
+    out: dict[str, Any] = {}
+    put(out, 'codigo', original.get('codigo'))
+    put(out, 'banco', bank)
+
+    # Native-only mapping.  Do not read generic aliases such as descricao/und/
+    # quant/valor_unit/total here, because those can be introduced by generic
+    # SINAPI-like or cascade stages after the native SICRO engine has already
+    # emitted the correct structure.
+    if sec == 'A':
+        put(out, 'equipamento', original.get('equipamento'), original.get('descricao'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
+        utilizacao = dict(original.get('utilizacao') or {}) if isinstance(original.get('utilizacao'), dict) else {}
         if not utilizacao.get('operativa'):
-            utilizacao['operativa'] = _source_text(srcwrap, 'utilizacao_operativa') or det.get('utilizacao_operativa')
+            utilizacao['operativa'] = numeric_text('utilizacao_operativa')
         if not utilizacao.get('improdutiva'):
-            utilizacao['improdutiva'] = _source_text(srcwrap, 'utilizacao_improdutiva') or det.get('utilizacao_improdutiva')
-        if any(v not in (None, '') for v in utilizacao.values()):
-            out['utilizacao'] = _clean_empty_deep(utilizacao)
-        custo_operacional = dict(out.get('custo_operacional') or {}) if isinstance(out.get('custo_operacional'), dict) else {}
+            utilizacao['improdutiva'] = numeric_text('utilizacao_improdutiva')
+        if any(v not in (None, '', [], {}) for v in utilizacao.values()):
+            out['utilizacao'] = _clean_empty_deep(_format_ptbr_public_number(utilizacao))
+        custo_operacional = dict(original.get('custo_operacional') or {}) if isinstance(original.get('custo_operacional'), dict) else {}
         if not custo_operacional.get('operativa'):
-            custo_operacional['operativa'] = _source_text(srcwrap, 'custo_operacional_operativa') or det.get('custo_operacional_operativa')
+            custo_operacional['operativa'] = numeric_text('custo_operacional_operativa')
         if not custo_operacional.get('improdutiva'):
-            custo_operacional['improdutiva'] = _source_text(srcwrap, 'custo_operacional_improdutiva') or det.get('custo_operacional_improdutiva')
-        if any(v not in (None, '') for v in custo_operacional.values()):
-            out['custo_operacional'] = _clean_empty_deep(custo_operacional)
-    elif section == 'B':
-        put_missing('mao_obra', original.get('mao_obra') or original.get('descricao'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('salario_hora', original.get('salario_hora') or _source_text(srcwrap, 'salario_hora') or _source_text(working, 'valor_unit'))
-        put_missing('custo_horario', original.get('custo_horario') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-    elif section == 'C':
-        put_missing('material', original.get('material') or original.get('descricao'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('unidade', original.get('unidade') or original.get('und'))
-        put_missing('preco_unitario', original.get('preco_unitario') or _source_text(srcwrap, 'preco_unitario') or _source_text(working, 'valor_unit'))
-        put_missing('custo_horario', original.get('custo_horario') or original.get('custo') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-        put_missing('custo', out.get('custo_horario'))
-    elif section == 'D':
-        put_missing('atividade_auxiliar', original.get('atividade_auxiliar') or original.get('descricao'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('unidade', original.get('unidade') or original.get('und'))
-        put_missing('preco_unitario', original.get('preco_unitario') or _source_text(srcwrap, 'preco_unitario') or _source_text(working, 'valor_unit'))
-        put_missing('custo_horario', original.get('custo_horario') or original.get('custo') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-        put_missing('custo', out.get('custo_horario'))
-    elif section == 'E':
-        put_missing('insumo', det.get('insumo_origem') or original.get('insumo') or original.get('codigo'))
-        put_missing('tempo_fixo', original.get('tempo_fixo') or original.get('descricao'))
-        put_missing('codigo', det.get('codigo_servico') or original.get('codigo'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('unidade', original.get('unidade') or original.get('und'))
-        put_missing('preco_unitario', original.get('preco_unitario') or _source_text(srcwrap, 'preco_unitario') or _source_text(working, 'valor_unit'))
-        put_missing('custo_horario', original.get('custo_horario') or original.get('custo') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-        put_missing('custo', out.get('custo_horario'))
-    elif section == 'F':
-        put_missing('insumo', det.get('insumo_origem') or original.get('insumo') or original.get('codigo'))
-        put_missing('momento_transporte', original.get('momento_transporte') or original.get('descricao'))
-        put_missing('quantidade', original.get('quantidade') or _source_text(working, 'quant'))
-        put_missing('unidade', original.get('unidade') or original.get('und'))
+            custo_operacional['improdutiva'] = numeric_text('custo_operacional_improdutiva')
+        if any(v not in (None, '', [], {}) for v in custo_operacional.values()):
+            out['custo_operacional'] = _clean_empty_deep(_format_ptbr_public_number(custo_operacional))
+        put(out, 'custo_horario', original.get('custo_horario'), original.get('custo'), numeric_text('custo_horario', 'total'))
+    elif sec == 'B':
+        put(out, 'mao_obra', original.get('mao_obra'), original.get('descricao'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
+        put(out, 'salario_hora', original.get('salario_hora'), numeric_text('salario_hora', 'valor_unit'))
+        put(out, 'custo_horario', original.get('custo_horario'), original.get('custo'), numeric_text('custo_horario', 'total'))
+    elif sec == 'C':
+        put(out, 'material', original.get('material'), original.get('descricao'))
+        put(out, 'unidade', original.get('unidade'), original.get('und'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
+        put(out, 'preco_unitario', original.get('preco_unitario'), numeric_text('preco_unitario', 'valor_unit'))
+        put(out, 'custo', original.get('custo'), original.get('custo_horario'), numeric_text('custo_horario', 'total'))
+    elif sec == 'D':
+        put(out, 'atividade_auxiliar', original.get('atividade_auxiliar'), original.get('descricao'))
+        put(out, 'unidade', original.get('unidade'), original.get('und'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
+        put(out, 'preco_unitario', original.get('preco_unitario'), numeric_text('preco_unitario', 'valor_unit'))
+        put(out, 'custo', original.get('custo'), original.get('custo_horario'), numeric_text('custo_horario', 'total'))
+        codigo = str(out.get('codigo') or '').strip()
+        banco_ref = _canon_bank_public(out.get('banco') or 'SICRO')
+        if codigo:
+            out['referencia'] = _clean_empty_deep({
+                'tipo': 'composicao_auxiliar_sicro',
+                'chave': f"{codigo.upper().replace(' ', '')}|{banco_ref}",
+                'relacao': 'secao_D_referencia_auxiliar_sem_mutacao_no_python',
+                'impacto_lovable': 'se_o_preco_da_auxiliar_for_alterado_no_lovable_recalcular_a_cadeia_que_referencia_esta_auxiliar',
+            })
+    elif sec == 'E':
+        det = original.get('detalhes') if isinstance(original.get('detalhes'), dict) else {}
+        put(out, 'insumo', det.get('insumo_origem'), original.get('insumo'))
+        put(out, 'codigo', det.get('codigo_servico'), original.get('codigo'))
+        put(out, 'tempo_fixo', original.get('tempo_fixo'), original.get('descricao'))
+        put(out, 'unidade', original.get('unidade'), original.get('und'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
+        put(out, 'preco_unitario', original.get('preco_unitario'), numeric_text('preco_unitario', 'valor_unit'))
+        put(out, 'custo', original.get('custo'), original.get('custo_horario'), numeric_text('custo_horario', 'total'))
+    elif sec == 'F':
+        det = original.get('detalhes') if isinstance(original.get('detalhes'), dict) else {}
+        put(out, 'insumo', det.get('insumo_origem'), original.get('insumo'))
+        put(out, 'momento_transporte', original.get('momento_transporte'), original.get('descricao'))
+        put(out, 'unidade', original.get('unidade'), original.get('und'))
+        put(out, 'quantidade', original.get('quantidade'), numeric_text('quant'))
         raw_dmt = det.get('dmt') if isinstance(det.get('dmt'), dict) else original.get('dmt') if isinstance(original.get('dmt'), dict) else {}
         dmt = {}
         for branch_name, branch in raw_dmt.items():
@@ -182,10 +212,22 @@ def _sicro_public_row(section: str, row: dict) -> dict:
             })
         if dmt:
             out['dmt'] = dmt
-        put_missing('custo_horario', original.get('custo_horario') or original.get('custo') or _source_text(srcwrap, 'custo_horario') or _source_text(working, 'total'))
-        put_missing('custo', out.get('custo_horario'))
-    return _clean_empty_deep(out)
+        put(out, 'custo', original.get('custo'), original.get('custo_horario'), numeric_text('custo_horario', 'total'))
+    else:
+        allowed = {'codigo', 'banco', 'servico', 'unidade', 'quantidade', 'preco_unitario', 'custo', 'custo_horario'}
+        for key, value in original.items():
+            if key in allowed and value not in (None, '', [], {}):
+                out[key] = _format_ptbr_public_number(value)
 
+    forbidden = {
+        'descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna',
+        'banco_canonico', 'natureza', 'tipo', 'detalhes', '_cascaded_from',
+        'sicro_section_totals', 'cascaded_from'
+    }
+    for key in list(out.keys()):
+        if key in forbidden or str(key).startswith('_'):
+            out.pop(key, None)
+    return _clean_empty_deep(out)
 
 def _section_code_from_public_key(public_key: str) -> str:
     for code, alias in SICRO_SECTION_ALIASES.items():
@@ -331,32 +373,60 @@ def _normalize_sicro_payload(sicro: dict) -> dict:
 
 
 def _normalize_sicro_principal(row: dict) -> dict:
-    working = apply_numeric_sources_to_row(dict(row or {}))
-    detalhes = working.get('detalhes') if isinstance(working.get('detalhes'), dict) else {}
+    """Export a SICRO principal from native fields only.
+
+    v61.0.58: do not restore principal numbers from generic fields or numeric
+    sources after the native bridge.  If a later stage produced valor_unit/total
+    or mutated floats, those values are ignored for SICRO public output.
+    """
+    if not isinstance(row, dict):
+        return {}
+    detalhes = row.get('detalhes') if isinstance(row.get('detalhes'), dict) else {}
     original = dict(detalhes.get('sicro_principal_original') or {})
-    # Preserve original principal columns from the native engine and add aliases
-    # needed by the public output contract.
-    out = _strip_runtime_keys({**original, **{k: v for k, v in (row or {}).items() if k != 'detalhes'}})
-    codigo = out.get('codigo') or row.get('codigo')
-    banco = out.get('banco') or row.get('banco') or row.get('banco_coluna') or 'SICRO'
-    out['codigo'] = codigo
-    out['banco'] = banco
-    out.setdefault('banco_canonico', _canon_bank_public(banco))
-    if row.get('tipo') not in (None, ''):
-        out.setdefault('tipo', row.get('tipo'))
-    if row.get('descricao') not in (None, ''):
-        out.setdefault('descricao', row.get('descricao'))
-    if row.get('und') not in (None, ''):
-        out.setdefault('und', row.get('und'))
-    # Friendly SICRO names; do not remove original names.
-    out.setdefault('servico', out.get('servico') or out.get('descricao'))
-    out.setdefault('unidade', out.get('unidade') or out.get('und'))
-    out.setdefault('quantidade', out.get('quantidade') or _source_text(working, 'quant'))
-    out.setdefault('custo_unitario', out.get('custo_unitario') or _source_text(working, 'valor_unit'))
-    out.setdefault('custo_total', out.get('custo_total') or _source_text(working, 'total'))
-    return _clean_empty_deep(out)
+    native = original if original else row
+    src = (detalhes.get('numeric_source') if isinstance(detalhes.get('numeric_source'), dict) else {})
 
+    def numeric_text(*fields: str) -> Any:
+        for field in fields:
+            meta = src.get(field) if isinstance(src, dict) else None
+            if isinstance(meta, dict) and meta.get('source_text') not in (None, ''):
+                return str(meta.get('source_text')).strip()
+        return None
 
+    def string_fallback(value: Any) -> Any:
+        # Fallback to legacy/generic values only when they are textual tokens,
+        # not mutated floats from cascade/debug math.
+        return value if isinstance(value, str) and value.strip() else None
+
+    def pick(*values: Any) -> Any:
+        for value in values:
+            if value not in (None, '', [], {}):
+                return value
+        return None
+
+    out: dict[str, Any] = {}
+    out['codigo'] = pick(native.get('codigo'))
+    out['banco'] = pick(native.get('banco'), 'SICRO')
+    out['servico'] = pick(native.get('servico'), string_fallback(row.get('descricao'))) 
+    out['unidade'] = pick(native.get('unidade'), string_fallback(row.get('und'))) 
+    out['quantidade'] = pick(native.get('quantidade'), numeric_text('quant'), string_fallback(row.get('quant'))) 
+    out['custo_unitario'] = pick(native.get('custo_unitario'), numeric_text('valor_unit'), string_fallback(row.get('valor_unit'))) 
+    out['custo_total'] = pick(native.get('custo_total'), numeric_text('total'), string_fallback(row.get('total'))) 
+    if isinstance(native.get('document_consistency'), dict) and native.get('document_consistency'):
+        out['document_consistency'] = native.get('document_consistency')
+    for key in ('producao_equipe', 'fator_bdi', 'data_base', 'fonte'):
+        if native.get(key) not in (None, '', [], {}):
+            out[key] = native.get(key)
+
+    forbidden = {
+        'descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna',
+        'banco_canonico', 'natureza', 'tipo', 'detalhes', '_cascaded_from',
+        'sicro_section_totals', 'cascaded_from'
+    }
+    for key in list(out.keys()):
+        if key in forbidden or str(key).startswith('_'):
+            out.pop(key, None)
+    return _clean_empty_deep(_format_ptbr_public_number(out))
 
 def _dedup_strings(values: Iterable[str]) -> List[str]:
     out: List[str] = []
@@ -550,9 +620,21 @@ def _format_public_row_numbers(row: dict) -> None:
 def _format_public_budget_numbers(node: dict) -> None:
     if not isinstance(node, dict):
         return
+    # v61.0.59: budget numeric_source is the physical PDF token and is
+    # reapplied after any validation/recalculation stages that may have touched
+    # public fields.  Calculations remain audit-only.
+    apply_numeric_sources_to_row(node)
     for key in ("quant", "custo_unitario_sem_bdi", "custo_unitario_com_bdi", "custo_parcial", "custo_total", "total"):
         if key in node and isinstance(node.get(key), (int, float)) and not isinstance(node.get(key), bool):
             node[key] = _format_ptbr_public_number(node.get(key))
+    decimal_issues = audit_decimal_loss(node)
+    if decimal_issues:
+        node.setdefault("detalhes", {}).setdefault("numeric_fidelity_issues", decimal_issues)
+    detalhes = node.get("detalhes")
+    if isinstance(detalhes, dict):
+        detalhes.pop("numeric_source", None)
+        if not detalhes:
+            node.pop("detalhes", None)
     for key in ("descricao", "especificacao"):
         if key in node:
             node[key] = _sanitize_public_description_value(node.get(key))
@@ -575,20 +657,43 @@ def _format_public_budget_tree(result: dict) -> None:
             _format_public_budget_numbers(node)
 
 
+_PUBLIC_NUMERIC_FLOAT_FIELDS = {
+    "quant", "valor_unit", "total", "quantidade", "preco_unitario", "custo_horario",
+    "custo", "salario_hora", "custo_unitario", "custo_unitario_sem_bdi",
+    "custo_unitario_com_bdi", "custo_parcial", "custo_total", "preco_item", "preco_total",
+}
+_INTERNAL_AUDIT_KEYS = {
+    "detalhes", "math_status", "math_triage", "docling_assistance", "multi_validator",
+    "numeric_fidelity_issues", "_calc", "validacao", "auditoria", "evidence", "evidencia",
+    "field_evidence_grades", "meta", "performance", "documento_correcao",
+    "documento_evidencias", "documento_enriquecimento", "analise_orcamentaria",
+}
+
 def _collect_public_float_errors(obj: Any, path: str = "") -> list[dict[str, Any]]:
+    """Flag float leaks only in public domain numeric fields.
+
+    v61.0.50: internal audit/math fields such as detalhes.math_status.delta are
+    allowed to be floats.  The public fidelity gate must protect the values that
+    Lovable displays as extracted budget/composition data, not diagnostic metrics.
+    """
     errors: list[dict[str, Any]] = []
     if isinstance(obj, dict):
         for k, v in obj.items():
+            if str(k) in _INTERNAL_AUDIT_KEYS:
+                continue
             child_path = f"{path}.{k}" if path else str(k)
             if isinstance(v, float):
-                errors.append({"path": child_path, "field": str(k), "value": v})
+                if str(k) in _PUBLIC_NUMERIC_FLOAT_FIELDS:
+                    errors.append({"path": child_path, "field": str(k), "value": v})
             elif isinstance(v, (dict, list)):
                 errors.extend(_collect_public_float_errors(v, child_path))
     elif isinstance(obj, list):
         for i, v in enumerate(obj):
             child_path = f"{path}.{i}" if path else str(i)
             if isinstance(v, float):
-                errors.append({"path": child_path, "field": path.rsplit('.', 1)[-1] if path else '', "value": v})
+                field = path.rsplit('.', 1)[-1] if path else ''
+                if field in _PUBLIC_NUMERIC_FLOAT_FIELDS:
+                    errors.append({"path": child_path, "field": field, "value": v})
             elif isinstance(v, (dict, list)):
                 errors.extend(_collect_public_float_errors(v, child_path))
     return errors
@@ -634,10 +739,53 @@ def _prune_runtime_row_fields(row: dict) -> dict:
 
 
 
+
+
+def _apply_sicro_native_public_block(block: dict, sicro_payload: dict | None = None) -> None:
+    """Keep SICRO blocks in the native public shape: principal + secoes.
+
+    This is not a late sanitizer; it is the public integration point for the
+    native SICRO engine.  The generic SINAPI-like lists are internal-only for
+    SICRO and are not exported.
+    """
+    if not isinstance(block, dict):
+        return
+    payload = sicro_payload
+    if not isinstance(payload, dict):
+        if isinstance(block.get('sicro'), dict):
+            payload = block.get('sicro')
+        else:
+            det = block.get('detalhes') if isinstance(block.get('detalhes'), dict) else {}
+            payload = det.get('sicro') if isinstance(det.get('sicro'), dict) else None
+    normalized = _normalize_sicro_payload(payload or {}) if isinstance(payload, dict) else {}
+    # Prefer the principal preserved from the native SICRO payload.  The block
+    # principal may have been wrapped in the generic LinhaComposicao model and
+    # later touched by generic repair/cascade passes; those values are not
+    # allowed to mutate the SICRO public contract.
+    native_principal = (payload or {}).get('principal') if isinstance(payload, dict) else None
+    if isinstance(native_principal, dict) and native_principal:
+        block['principal'] = _normalize_sicro_principal(native_principal)
+    elif isinstance(block.get('principal'), dict):
+        block['principal'] = _normalize_sicro_principal(block.get('principal') or {})
+    if isinstance(normalized, dict):
+        for key in ('secoes', 'resumos', 'validacao', 'text_integrity', 'document_consistency', 'document_consistency_warnings', 'text_audit_summary'):
+            if normalized.get(key) not in (None, '', [], {}):
+                block[key] = normalized.get(key)
+    # keep page span, but remove internal/generic containers
+    if isinstance(payload, dict):
+        _normalize_sicro_span(block, payload)
+    for key in ('sicro', 'detalhes', 'composicoes_auxiliares', 'insumos', 'sicro_section_totals', '_cascaded_from'):
+        block.pop(key, None)
+    # Avoid empty canonical containers and generic aliases at the block level.
+    for key in ('descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna', 'banco_canonico'):
+        block.pop(key, None)
+
 def _is_sicro_public_block(block_key: str, block: dict) -> bool:
     principal = block.get('principal') if isinstance(block.get('principal'), dict) else {}
     banco = principal.get('banco') or principal.get('banco_canonico') or principal.get('banco_coluna') or ''
     if _is_sicro_bank(banco):
+        return True
+    if isinstance(block.get('secoes'), dict) and block.get('secoes'):
         return True
     if isinstance(block.get('sicro'), dict) and block.get('sicro'):
         return True
@@ -687,21 +835,26 @@ def _prune_already_split_public_rows(composicoes: dict) -> None:
             for key, block in list(blocks.items()):
                 if not isinstance(block, dict):
                     continue
+                if family == 'sicro' or _is_sicro_public_block(str(key), block):
+                    payload = block.get('sicro') if isinstance(block.get('sicro'), dict) else None
+                    if not isinstance(payload, dict):
+                        det = block.get('detalhes') if isinstance(block.get('detalhes'), dict) else {}
+                        payload = det.get('sicro') if isinstance(det.get('sicro'), dict) else None
+                    _apply_sicro_native_public_block(block, payload)
+                    continue
                 principal = block.get('principal')
                 if isinstance(principal, dict):
-                    if family == 'sicro' or _is_sicro_public_block(str(key), block):
-                        block['principal'] = _normalize_sicro_principal(principal)
-                    else:
-                        _prune_runtime_row_fields(principal)
+                    _prune_runtime_row_fields(principal)
                 for group in ('composicoes_auxiliares', 'insumos'):
                     rows = block.get(group)
                     if isinstance(rows, list):
                         for row in rows:
                             if isinstance(row, dict):
                                 _prune_runtime_row_fields(row)
-                sicro_payload = block.get('sicro')
-                if isinstance(sicro_payload, dict):
-                    block['sicro'] = _normalize_sicro_payload(sicro_payload)
+                        if not rows:
+                            block.pop(group, None)
+                if not block.get('detalhes'):
+                    block.pop('detalhes', None)
 
 def _split_composicoes_by_family(composicoes: dict) -> dict:
     if not isinstance(composicoes, dict):
@@ -730,26 +883,35 @@ def _split_composicoes_by_family(composicoes: dict) -> dict:
     aliases = composicoes.get('aliases_auxiliares')
     if isinstance(aliases, dict) and aliases:
         out['aliases_auxiliares'] = aliases
+    _prune_already_split_public_rows(out)
     return _enforce_sicro_item_classification(out)
 
 
 def _iter_family_blocks(composicoes: dict):
     if not isinstance(composicoes, dict):
         return
-    if isinstance(composicoes.get('sicro'), dict) or isinstance(composicoes.get('sinapi_like'), dict):
-        for family in ('sinapi_like', 'sicro'):
-            fam = composicoes.get(family) or {}
-            if not isinstance(fam, dict):
-                continue
+    seen = set()
+    for family in ('sinapi_like', 'sicro'):
+        fam = composicoes.get(family) or {}
+        if isinstance(fam, dict):
             for collection_name in ('principais', 'auxiliares_globais'):
                 for key, block in (fam.get(collection_name) or {}).items():
                     if isinstance(block, dict):
-                        yield family, collection_name, key, block
-    else:
-        for collection_name in ('principais', 'auxiliares_globais'):
-            for key, block in (composicoes.get(collection_name) or {}).items():
-                if isinstance(block, dict):
-                    yield ('sicro' if _is_sicro_public_block(str(key), block) else 'sinapi_like'), collection_name, key, block
+                        marker = (family, collection_name, str(key), id(block))
+                        if marker not in seen:
+                            seen.add(marker)
+                            yield family, collection_name, key, block
+    # Some v61 public payloads still retain the flat legacy collections next to
+    # the split family mirrors.  The quality gate must inspect them too; otherwise
+    # flat SINAPI-like rows with missing numeric fields can escape as status=ok.
+    for collection_name in ('principais', 'auxiliares_globais'):
+        for key, block in (composicoes.get(collection_name) or {}).items():
+            if isinstance(block, dict):
+                family = 'sicro' if _is_sicro_public_block(str(key), block) else 'sinapi_like'
+                marker = (family, collection_name, str(key), id(block))
+                if marker not in seen:
+                    seen.add(marker)
+                    yield family, collection_name, key, block
 
 
 
@@ -820,14 +982,14 @@ def _quality_gate_final(result: dict) -> dict:
         float_errors.append(err)
     family_split_ok = isinstance(composicoes.get('sinapi_like'), dict) and isinstance(composicoes.get('sicro'), dict)
     if not family_split_ok:
-        issues.append({'code': 'composition_family_split_missing'})
+        issues.append({'code': 'composition_family_split_missing', 'severity': 'blocking', 'blocks_json_ok': True})
     essential_by_section = {
         'A': ['codigo', 'banco', 'equipamento', 'quantidade', 'utilizacao', 'custo_operacional', 'custo_horario'],
         'B': ['codigo', 'banco', 'mao_obra', 'quantidade', 'salario_hora', 'custo_horario'],
-        'C': ['codigo', 'banco', 'material', 'quantidade', 'unidade', 'preco_unitario', 'custo_horario'],
-        'D': ['codigo', 'banco', 'atividade_auxiliar', 'quantidade', 'unidade', 'preco_unitario', 'custo_horario'],
-        'E': ['insumo', 'banco', 'tempo_fixo', 'codigo', 'quantidade', 'unidade', 'preco_unitario', 'custo_horario'],
-        'F': ['insumo', 'banco', 'momento_transporte', 'quantidade', 'unidade', 'custo_horario'],
+        'C': ['codigo', 'banco', 'material', 'quantidade', 'unidade', 'preco_unitario', 'custo'],
+        'D': ['codigo', 'banco', 'atividade_auxiliar', 'quantidade', 'unidade', 'preco_unitario', 'custo'],
+        'E': ['insumo', 'banco', 'tempo_fixo', 'codigo', 'quantidade', 'unidade', 'preco_unitario', 'custo'],
+        'F': ['insumo', 'banco', 'momento_transporte', 'quantidade', 'unidade', 'custo'],
     }
     for family, collection, key, block in list(_iter_family_blocks(composicoes) or []):
         for group, idx, row in _iter_public_rows_in_block(block):
@@ -835,20 +997,46 @@ def _quality_gate_final(result: dict) -> dict:
                 if isinstance(v, float):
                     float_errors.append({'family': family, 'collection': collection, 'block': key, 'row_group': group, 'row_index': idx, 'field': k, 'value': v})
         if family != 'sicro':
+            try:
+                from app.parser.math_status import compute_component_math
+                math = compute_component_math(block)
+            except Exception:
+                math = {}
+            math_status = str((math or {}).get('status') or '')
+            if int((math or {}).get('missing_component_totals') or 0) > 0:
+                issues.append({'code': 'sinapi_like_component_math_unclosed', 'severity': 'blocking', 'blocks_json_ok': True, 'collection': collection, 'block': key, 'math_status': math})
+            for group, idx, row in _iter_public_rows_in_block(block):
+                required = ('und', 'quant', 'valor_unit', 'total')
+                missing_public = [field for field in required if row.get(field) in (None, '', [], {})]
+                if missing_public and (math_status in {'component_sum_lower_than_principal', 'component_sum_greater_than_principal', 'not_validatable'} or group != 'principal'):
+                    issues.append({'code': 'sinapi_like_public_numeric_missing', 'severity': 'blocking', 'blocks_json_ok': True, 'collection': collection, 'block': key, 'row_group': group, 'row_index': idx, 'codigo': row.get('codigo'), 'missing': missing_public})
             continue
         principal = block.get('principal') if isinstance(block.get('principal'), dict) else {}
         if collection == 'principais' and not str(block.get('item') or '').strip():
-            issues.append({'code': 'sicro_principal_without_item', 'block': key})
+            issues.append({'code': 'sicro_principal_without_item', 'severity': 'blocking', 'blocks_json_ok': True, 'block': key})
         if collection == 'auxiliares_globais' and str(block.get('item') or '').strip():
-            issues.append({'code': 'sicro_auxiliar_with_item', 'block': key})
-        sicro_payload = block.get('sicro') if isinstance(block.get('sicro'), dict) else {}
-        secoes = sicro_payload.get('secoes') if isinstance(sicro_payload.get('secoes'), dict) else {}
+            issues.append({'code': 'sicro_auxiliar_with_item', 'severity': 'blocking', 'blocks_json_ok': True, 'block': key})
+        secoes = block.get('secoes') if isinstance(block.get('secoes'), dict) else {}
+        if not secoes:
+            sicro_payload = block.get('sicro') if isinstance(block.get('sicro'), dict) else {}
+            secoes = sicro_payload.get('secoes') if isinstance(sicro_payload.get('secoes'), dict) else {}
+        forbidden_principal = {'descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna', 'banco_canonico', 'composicoes_auxiliares', 'insumos', 'detalhes', '_cascaded_from', 'sicro_section_totals'}
+        leaked_principal = [f for f in forbidden_principal if f in principal]
+        if leaked_principal:
+            issues.append({'code': 'sicro_principal_generic_alias_leaked', 'severity': 'blocking', 'blocks_json_ok': True, 'block': key, 'fields': leaked_principal})
+        leaked_block = [f for f in ('composicoes_auxiliares', 'insumos', 'detalhes', 'sicro', '_cascaded_from', 'sicro_section_totals') if f in block]
+        if leaked_block:
+            issues.append({'code': 'sicro_block_generic_container_leaked', 'severity': 'blocking', 'blocks_json_ok': True, 'block': key, 'fields': leaked_block})
         for sec, sec_data in (secoes or {}).items():
             rows = sec_data.get('linhas') if isinstance(sec_data, dict) else []
             required = essential_by_section.get(str(sec), [])
             for idx, row in enumerate(rows or []):
                 if not isinstance(row, dict):
                     continue
+                forbidden_row_keys = {'descricao', 'und', 'quant', 'valor_unit', 'total', 'banco_coluna', 'banco_canonico', 'natureza', 'tipo', 'detalhes', '_cascaded_from', 'sicro_section_totals'}
+                leaked_row_keys = [rk for rk in forbidden_row_keys if rk in row]
+                if leaked_row_keys:
+                    issues.append({'code': 'sicro_section_row_generic_or_cascade_field_leaked', 'severity': 'blocking', 'blocks_json_ok': True, 'block': key, 'section': sec, 'row': idx, 'fields': leaked_row_keys})
                 for k, v in row.items():
                     if isinstance(v, float):
                         float_errors.append({'block': key, 'section': sec, 'row': idx, 'field': k, 'value': v})
@@ -856,25 +1044,54 @@ def _quality_gate_final(result: dict) -> dict:
                 if missing:
                     sicro_missing.append({'block': key, 'section': sec, 'row': idx, 'missing': missing})
     public_pollution = _public_text_pollution_issues(result)
-    issues.extend({'code': 'sicro_public_row_incomplete', **x} for x in sicro_missing[:50])
-    issues.extend({'code': 'public_float_leaked', **x} for x in float_errors[:50])
-    issues.extend(public_pollution[:50])
+    issues.extend({'code': 'sicro_public_row_incomplete', 'severity': 'blocking', 'blocks_json_ok': True, **x} for x in sicro_missing[:50])
+    issues.extend({'code': 'public_float_leaked', 'severity': 'blocking', 'blocks_json_ok': True, **x} for x in float_errors[:50])
+    issues.extend({'severity': 'warning', 'blocks_json_ok': False, **x} for x in public_pollution[:50])
+    # Evidence-first public fields: when the final real-flow orchestrator has
+    # produced a physical evidence report, unresolved public numeric evidence is
+    # blocking.  Do not require this report when no PDF was available; mandatory
+    # orchestrator failures handle that separately.
+    evidence_doc = result.get('documento_evidencias') if isinstance(result.get('documento_evidencias'), dict) else {}
+    ev_report = evidence_doc.get('public_numeric_evidence_report') if isinstance(evidence_doc.get('public_numeric_evidence_report'), dict) else {}
+    if ev_report and ev_report.get('attempted', True) and ev_report.get('strict_public_evidence_required'):
+        for missing_ev in list(ev_report.get('blocking_missing_evidence') or [])[:50]:
+            issues.append({'code': 'public_numeric_without_physical_evidence', 'severity': 'blocking', 'blocks_json_ok': True, **(missing_ev if isinstance(missing_ev, dict) else {'detail': missing_ev})})
+
+    # v61.0.62: keep the final gate aligned with the existing recovery tools.
+    # If the physical numeric tail recovery report still has current blocking
+    # unresolved rows, surface them as quality issues instead of letting stale
+    # correction summaries hide the problem.
+    perf = ((result.get('meta') or {}).get('performance') or {}) if isinstance(result.get('meta'), dict) else {}
+    for rep_name in ('physical_numeric_tail_recovery', 'physical_numeric_tail_recovery_finalize', 'physical_numeric_tail_recovery_accuracy_flow', 'physical_numeric_tail_recovery_standalone'):
+        rep = perf.get(rep_name) if isinstance(perf, dict) else None
+        if isinstance(rep, dict):
+            for unresolved in list(rep.get('blocking_unresolved') or [])[:50]:
+                issues.append({'code': 'physical_numeric_tail_unresolved', 'severity': 'blocking', 'blocks_json_ok': True, 'source_report': rep_name, **(unresolved if isinstance(unresolved, dict) else {'detail': unresolved})})
     corr = result.get('documento_correcao') if isinstance(result.get('documento_correcao'), dict) else {}
     corr_resumo = corr.get('resumo') if isinstance(corr.get('resumo'), dict) else {}
     valid_resumo = ((result.get('validacao') or {}).get('resumo') or {}) if isinstance(result.get('validacao'), dict) else {}
+    # v61.0.51: final validation may contain human-review diagnostics from
+    # hierarchy/references.  They should not fail the public quality gate when
+    # public fields, math fields and closure are already consistent.  The
+    # correction document now exposes these as review items instead.
     final_validation_synced = True
-    if int(corr_resumo.get('total_registros_com_erro') or 0) == 0 and int(valid_resumo.get('total_erros') or 0) not in (0,):
-        final_validation_synced = False
-        issues.append({'code': 'final_validation_not_synced'})
+    severity_summary = {
+        'blocking': sum(1 for issue in issues if str((issue or {}).get('severity') or '') == 'blocking' or (issue or {}).get('blocks_json_ok')),
+        'warning': sum(1 for issue in issues if str((issue or {}).get('severity') or '') == 'warning'),
+        'info': sum(1 for issue in issues if str((issue or {}).get('severity') or '') == 'info'),
+    }
+    blocking_issues = [issue for issue in issues if str((issue or {}).get('severity') or '') == 'blocking' or (issue or {}).get('blocks_json_ok')]
     return {
-        'version': 'v61.0.35-candidate-profile-consensus-engine',
-        'ok': not issues,
+        'version': 'v61.0.75-correction-output-contract-and-review-index',
+        'ok': not blocking_issues and not any(i.get('code') in {'public_float_leaked', 'sinapi_like_public_numeric_missing', 'sinapi_like_component_math_unclosed'} for i in issues if isinstance(i, dict)),
         'family_split_ok': family_split_ok,
         'sicro_public_rows_incomplete': sicro_missing[:100],
         'numeric_fidelity_errors': float_errors[:100],
         'public_text_pollution': public_pollution[:100],
         'legacy_fields_leaked': [],
         'final_validation_synced': final_validation_synced,
+        'severity_summary': severity_summary,
+        'blocking_issue_count': len(blocking_issues),
         'issues': issues[:200],
     }
 
@@ -901,9 +1118,49 @@ def _sync_correction_document_with_quality_gate(result: dict) -> None:
         if isinstance(resumo, dict):
             resumo['total_quality_gate_issues'] = len(qissues)
             resumo['quality_gate_ok'] = bool(gate.get('ok'))
+            resumo['quality_gate_severity_summary'] = gate.get('severity_summary') or {}
+            resumo['quality_gate_blocking_issue_count'] = int(gate.get('blocking_issue_count') or 0)
             # A failed gate is a real final issue even if composition math is clean.
             if not gate.get('ok'):
                 resumo['total_registros_com_erro'] = max(int(resumo.get('total_registros_com_erro') or 0), 1)
+
+
+def refresh_quality_gate_after_repairs(result: dict) -> dict:
+    """Recompute the final public quality gate after late repair/closure passes.
+
+    v61.0.51: late browser flows may repair compositions after the initial
+    compacting pass.  Reuse the public-field-only quality gate so internal audit
+    floats (detalhes.math_status, scores, tolerances, etc.) do not make Lovable
+    think the public JSON is invalid.
+    """
+    if not isinstance(result, dict):
+        return {}
+    gate = _quality_gate_final(result)
+    result.setdefault('auditoria_final', {})['quality_gate'] = gate
+    # Remove stale quality-gate issues from previous versions before syncing the
+    # current gate.  Keep non-quality warnings intact.
+    doc = result.setdefault('documento_correcao', {})
+    if isinstance(doc, dict):
+        warnings = doc.get('warnings')
+        if isinstance(warnings, list):
+            doc['warnings'] = [w for w in warnings if not (isinstance(w, dict) and w.get('tipo') == 'quality_gate_issue')]
+        if gate.get('ok'):
+            if result.get('status') == 'quality_gate_failed':
+                result['status'] = 'ok'
+            doc.pop('quality_gate', None)
+            resumo = doc.setdefault('resumo', {})
+            if isinstance(resumo, dict):
+                resumo['total_quality_gate_issues'] = 0
+                resumo['quality_gate_ok'] = True
+                resumo['quality_gate_severity_summary'] = gate.get('severity_summary') or {'blocking': 0, 'warning': 0, 'info': 0}
+                resumo['quality_gate_blocking_issue_count'] = 0
+                # Do not clear real error counters here; only remove false public
+                # float failures caused by stale quality-gate sync.
+        else:
+            doc['quality_gate'] = gate
+    _sync_correction_document_with_quality_gate(result)
+    return gate
+
 
 def prune_runtime_only_fields(result: dict) -> dict:
     composicoes = result.get('composicoes')
@@ -933,16 +1190,9 @@ def prune_runtime_only_fields(result: dict) -> dict:
             if isinstance(sicro_payload, dict):
                 normalized_sicro = _normalize_sicro_payload(sicro_payload or {})
                 if _is_sicro_bank(principal_bank):
-                    # SICRO final output is domain-only and direct: no detalhes.sicro,
-                    # no old SINAPI-like collections, no Docling maps, no debug fields.
-                    if normalized_sicro:
-                        block['sicro'] = normalized_sicro
-                    else:
-                        block.pop('sicro', None)
-                    _normalize_sicro_span(block, sicro_payload)
-                    block.pop('detalhes', None)
-                    block.pop('composicoes_auxiliares', None)
-                    block.pop('insumos', None)
+                    # SICRO final output is native: principal + secoes/resumos/validacao.
+                    # Do not expose the generic SINAPI-like containers.
+                    _apply_sicro_native_public_block(block, sicro_payload)
                 else:
                     if isinstance(detalhes_block, dict):
                         detalhes_block['sicro'] = normalized_sicro

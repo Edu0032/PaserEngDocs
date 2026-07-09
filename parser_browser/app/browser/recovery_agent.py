@@ -6,6 +6,7 @@ from app.core.correction_report import build_correction_document
 from app.parser.correction_decision_report import augment_correction_with_repair_summary
 from app.core.output_compact import prune_runtime_only_fields
 from app.parser.broken_line_recovery import pollution_reason, similarity
+from app.parser.field_patch_validators import candidate_kind, normalize_field_name, validate_patch_candidate
 
 def _clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
@@ -75,6 +76,27 @@ def _current_allows_patch(current: Any, value: Any, issue: str = "", evidence: D
     if "broken" in issue_l or strategy in {"upward_fragments_plus_target", "target_plus_downward_fragments", "confirmed_description_registry"}:
         return len(val) > len(cur) + 3 and (starts or contains) and similarity(cur, val) >= 0.72
     return len(val) > len(cur) + 8 and starts
+
+def _current_allows_generic_patch(field: str, current: Any, value: Any, issue: str = "", evidence: Dict[str, Any] | None = None) -> bool:
+    kind = candidate_kind(field)
+    if kind == "description":
+        return _current_allows_patch(current, value, issue, evidence)
+    cur = _clean_text(current)
+    val = _clean_text(value)
+    if not val:
+        return False
+    if not cur:
+        return True
+    if _norm(cur) == _norm(val):
+        return False
+    issue_l = str(issue or "").lower()
+    # Only replace non-textual values when the target was explicitly marked as
+    # empty/suspect by closure/deep sweep.  This prevents overwriting coherent
+    # extracted values with a coincidental numeric token.
+    if any(token in issue_l for token in ["missing", "empty", "unclosed", "suspect", "math"]):
+        return True
+    return False
+
 
 def _row_identity_matches(row: Any, patch: Dict[str, Any]) -> bool:
     if not isinstance(row, dict): return False
@@ -163,27 +185,33 @@ def apply_recovery_patches(final_result: Dict[str, Any], recovery_payload: Dict[
     for patch in patches:
         if not isinstance(patch, dict): continue
         target_id = patch.get("target_id") or ".".join(map(str, patch.get("path") or [])); confidence=float(patch.get("confidence") or 0.0)
-        field=str(patch.get("field") or "descricao"); value=_clean_text(patch.get("value")); issue=str(patch.get("issue") or patch.get("target_issue") or "")
+        field=normalize_field_name(patch.get("field") or "descricao"); value=_clean_text(patch.get("value")); issue=str(patch.get("issue") or patch.get("target_issue") or "")
         base={"target_id":target_id,"field":field,"confidence":confidence,"codigo":patch.get("codigo"),"banco":patch.get("banco"),"source":patch.get("source") or "normalizer_targeted_recovery","page":patch.get("page"),"path":patch.get("path") or []}
-        if not _field_is_description_patch(patch): rejected.append({**base,"status":"rejected","reason":"unsupported_field"}); continue
         if confidence < min_confidence: rejected.append({**base,"status":"rejected","reason":"confidence_below_threshold"}); continue
-        if not _value_is_valid_description(value): rejected.append({**base,"status":"rejected","reason":"invalid_description_value","value":value}); continue
-        ok,row_path,row,resolution = _resolve_patch_target(final_result, patch)
+        ok,row_path,row,resolution = _resolve_patch_target(final_result, {**patch, "field": field})
         if not ok or row is None: rejected.append({**base,"status":"failed","reason":resolution}); continue
+        validation = validate_patch_candidate(field, value, row, {"evidence": patch.get("evidence") or {}})
+        if not validation.get("ok"):
+            rejected.append({**base,"status":"rejected","reason":f"invalid_{candidate_kind(field)}_value","validation":validation,"value":value}); continue
+        normalized_value = _clean_text(validation.get("normalized", value))
+        if candidate_kind(field) == "description" and not _value_is_valid_description(normalized_value):
+            rejected.append({**base,"status":"rejected","reason":"invalid_description_value","value":normalized_value}); continue
         current=row.get(field)
-        if _norm(current) == _norm(value):
-            rejected.append({**base,"status":"rejected","reason":"no_op_same_value","before":current,"value":value,"resolved_path":row_path}); continue
-        if not _current_allows_patch(current,value,issue,patch.get("evidence") or {}): rejected.append({**base,"status":"rejected","reason":"current_value_not_empty_or_not_truncated","before":current,"value":value,"resolved_path":row_path}); continue
-        full_path=row_path+[field]; set_ok,before,_=_set_path(final_result,full_path,value)
+        if _norm(current) == _norm(normalized_value):
+            rejected.append({**base,"status":"rejected","reason":"no_op_same_value","before":current,"value":normalized_value,"resolved_path":row_path}); continue
+        if not _current_allows_generic_patch(field,current,normalized_value,issue,patch.get("evidence") or {}):
+            rejected.append({**base,"status":"rejected","reason":"current_value_not_empty_or_not_suspect","before":current,"value":normalized_value,"resolved_path":row_path}); continue
+        full_path=row_path+[field]; set_ok,before,_=_set_path(final_result,full_path,normalized_value)
         if not set_ok: rejected.append({**base,"status":"failed","reason":"write_failed","resolved_path":row_path}); continue
         verified_ok,after=_get_path(final_result,full_path)
-        if not verified_ok or _clean_text(after)!=value:
-            rejected.append({**base,"status":"failed_not_persisted","reason":"verification_failed","before":before,"expected":value,"actual":after,"resolved_path":row_path}); continue
-        post_veto = pollution_reason(after)
-        if post_veto:
-            _set_path(final_result, full_path, before)
-            rejected.append({**base,"status":"rolled_back","reason":"post_validation_pollution","pollution_reason":post_veto,"before":before,"value":value,"resolved_path":row_path}); continue
-        commits.append({**base,"status":"committed","resolution":resolution,"resolved_path":full_path,"before":before,"after":after,"verified_after_write":True,"post_validation":"ok","evidence":patch.get("evidence") or {}})
+        if not verified_ok or _clean_text(after)!=normalized_value:
+            rejected.append({**base,"status":"failed_not_persisted","reason":"verification_failed","before":before,"expected":normalized_value,"actual":after,"resolved_path":row_path}); continue
+        if candidate_kind(field) == "description":
+            post_veto = pollution_reason(after)
+            if post_veto:
+                _set_path(final_result, full_path, before)
+                rejected.append({**base,"status":"rolled_back","reason":"post_validation_pollution","pollution_reason":post_veto,"before":before,"value":normalized_value,"resolved_path":row_path}); continue
+        commits.append({**base,"status":"committed","resolution":resolution,"resolved_path":full_path,"before":before,"after":after,"verified_after_write":True,"post_validation":"ok","validation":validation,"evidence":patch.get("evidence") or {}})
     return {"final_result":final_result,"commits":commits,"rejected":rejected,"received":len(patches)}
 
 def rebuild_correction_document(final_result: Dict[str, Any], *, version: str | None = None, preliminary: Dict[str, Any] | None = None, recovery_audit: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -256,6 +284,21 @@ def apply_targeted_recovery_to_final_result(final_result: Dict[str, Any], recove
     recovery_audit.update({"received":applied["received"],"committed":len(applied["commits"]),"verified":sum(1 for c in applied["commits"] if c.get("verified_after_write")),"failed":len(applied["rejected"]),"commits":applied["commits"],"rejected":applied["rejected"],"applied":len(applied["commits"]),"attempted":bool(recovery_payload.get("attempted",True)),"commit_status":"ok" if not applied["rejected"] else "partial"})
     final.setdefault("meta", {})["targeted_recovery"] = recovery_audit
     final["documento_correcao"] = rebuild_correction_document(final, version=version, preliminary=preliminary, recovery_audit=recovery_audit)
+    # v61.0.39: recovery patches can close numeric/unit fields. Re-run the
+    # closure engine so correction_document reflects the final state rather than
+    # stale pre-recovery unresolved rows.
+    if applied["commits"]:
+        try:
+            from app.parser.line_certainty_closure import run_line_certainty_closure_engine
+            final, closure_report = run_line_certainty_closure_engine(final, apply=True, max_rounds=8)
+            final.setdefault("meta", {}).setdefault("performance", {})["line_certainty_closure_after_recovery"] = closure_report
+            recovery_audit["line_certainty_reclosed_after_recovery"] = True
+            final.setdefault("meta", {})["targeted_recovery"] = recovery_audit
+            if isinstance(final.get("documento_correcao"), dict):
+                final["documento_correcao"]["targeted_recovery"] = recovery_audit
+        except Exception as exc:
+            recovery_audit["line_certainty_reclosed_after_recovery"] = False
+            recovery_audit["line_certainty_reclosure_error"] = {"message": str(exc), "type": exc.__class__.__name__}
     final=prune_runtime_only_fields(final)
     _sync_validation_summary_with_correction(final)
     return final

@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from app.core.schemas import BlocoComposicao, Composicoes, LinhaComposicao, LinhaInsumo
 from app.parser.broken_line_recovery import pollution_reason as _shared_pollution_reason
 
-VERSION = 'v61.0.35-candidate-profile-consensus-engine'
+VERSION = 'v61.0.75-correction-output-contract-and-review-index'
 
 
 def _clean(value: Any) -> str:

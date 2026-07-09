@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Tuple
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _clean(v: Any) -> str:

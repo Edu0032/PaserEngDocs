@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/output/final_result.schema.json",
+  "title": "Parser final_result",
+  "type": "object",
+  "required": ["orcamento_sintetico", "composicoes", "documento_correcao", "documento_evidencias", "documento_enriquecimento", "analise_orcamentaria"],
+  "additionalProperties": true,
+  "properties": {
+    "orcamento_sintetico": {"type": "object"},
+    "composicoes": {"type": "object"},
+    "documento_correcao": {"type": "object"},
+    "documento_evidencias": {"type": "object"},
+    "documento_enriquecimento": {"type": "object"},
+    "analise_orcamentaria": {"type": "object"}
+  }
+}

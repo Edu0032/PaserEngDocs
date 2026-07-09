@@ -1,0 +1,10 @@
+{
+  "status": "ok",
+  "version": "v61.0.62-composition-locking-and-budget-ownership",
+  "orcamento_sintetico": {"itens_raiz": []},
+  "composicoes": {"sinapi_like": {"principais": {}, "auxiliares_globais": {}}, "sicro": {"principais": {}, "auxiliares_globais": {}}},
+  "documento_correcao": {"schema_version": "outputs.v1", "document_type": "documento_correcao", "painel_lovable": {"status": "ok"}},
+  "documento_evidencias": {"schema_version": "outputs.v1", "document_type": "evidence_document"},
+  "documento_enriquecimento": {"schema_version": "outputs.v1", "document_type": "enrichment_document", "approval_policy": {"auto_apply_to_base_config": false}},
+  "analise_orcamentaria": {"schema_version": "outputs.v1", "document_type": "analytics_document"}
+}

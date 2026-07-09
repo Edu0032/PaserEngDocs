@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/input/runtime_options.schema.json",
+  "title": "Lovable runtime_options",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "docling_endpoint": {"type": "string"},
+    "docling_timeout_ms": {"type": "integer", "minimum": 1000},
+    "clear_cache_before_run": {"type": "boolean"},
+    "bypass_docling_cache": {"type": "boolean"},
+    "targeted_recovery_max_pages_per_batch": {"type": "integer", "minimum": 1}
+  }
+}

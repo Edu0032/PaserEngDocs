@@ -10,7 +10,7 @@ Ele não deve esconder falhas. Se o Quality Gate detectou problema, o correction
 
 ```json
 {
-  "versao": "v61.0.35-candidate-profile-consensus-engine",
+  "versao": "v61.0.39-deep-area-sweep-iterative-closure",
   "resumo": {
     "total_blocos_analisados": 0,
     "total_registros_com_erro": 0,

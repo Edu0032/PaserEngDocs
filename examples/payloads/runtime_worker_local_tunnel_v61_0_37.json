@@ -1,0 +1,11 @@
+{
+  "docling_api_url": "https://SUA-URL-DO-TUNEL.trycloudflare.com/docling/extract-table-structure",
+  "docling_api_key": "parser-orca-docling-2026-chave-secreta",
+  "docling_api_key_header": "x-api-key",
+  "docling_timeout_ms": 240000,
+  "normalizer_mode": "local_pyodide",
+  "performance_profile": "browser_robust",
+  "table_structure_enabled": true,
+  "normalizer_targeted_recovery_enabled": true,
+  "targeted_recovery_max_pages_per_batch": 12
+}

@@ -1,6 +1,6 @@
 # Changelog — v61.0.32
 
-`v61.0.35-candidate-profile-consensus-engine`
+`v61.0.39-deep-area-sweep-iterative-closure`
 
 ## v61.0.31 — Docling/Profile Hardening incluído
 

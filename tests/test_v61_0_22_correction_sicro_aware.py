@@ -7,7 +7,7 @@ sys.path.insert(0, str(ROOT / 'parser_browser'))
 from app.core.correction_report import build_correction_document
 from app.browser.recovery_agent import rebuild_correction_document, apply_targeted_recovery_to_final_result
 
-VERSION = 'v61.0.35-candidate-profile-consensus-engine'
+VERSION = 'v61.0.39-deep-area-sweep-iterative-closure'
 
 
 def _valid_sicro_compositions():

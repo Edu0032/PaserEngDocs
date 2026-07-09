@@ -7,7 +7,7 @@ from app.core.payload_contract import clean_table_hints_for_docling, payload_usa
 from app.parser.selective_reparse import build_weak_field_reparse_targets
 from app.profile.docling_profile_calibrator import calibrate_docling_profile
 
-VERSION = 'v61.0.35-candidate-profile-consensus-engine'
+VERSION = 'v61.0.39-deep-area-sweep-iterative-closure'
 
 
 def test_payload_usage_counts_header_canonical_first_row_and_splits_runtime():

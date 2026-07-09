@@ -1,0 +1,8 @@
+{
+  "docling_endpoint": "http://127.0.0.1:8000/docling/extract-table-structure",
+  "docling_timeout_ms": 240000,
+  "clear_cache_before_run": false,
+  "bypass_docling_cache": false,
+  "targeted_recovery_max_pages_per_batch": 12,
+  "normalizer_mode": "local_pyodide"
+}

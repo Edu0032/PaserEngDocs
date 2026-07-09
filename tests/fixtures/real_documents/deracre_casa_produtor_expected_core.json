@@ -1,0 +1,38 @@
+{
+  "name": "deracre_casa_produtor",
+  "items": [
+    {
+      "codigo": "74209/001",
+      "banco": "SINAPI",
+      "fields": {
+        "und": "m²",
+        "quant": "6,00",
+        "custo_unitario_com_bdi": "634,16",
+        "custo_parcial": "3.804,96",
+        "valor_unit": "521,39",
+        "total": "521,39"
+      }
+    },
+    {
+      "codigo": "89446",
+      "banco": "SINAPI",
+      "fields": {
+        "und": "m",
+        "quant": "61,00",
+        "custo_unitario_com_bdi": "6,65",
+        "custo_parcial": "405,65",
+        "valor_unit": "5,47",
+        "total": "5,47"
+      }
+    },
+    {
+      "codigo": "ANP 01",
+      "banco": "PROPRIO",
+      "fields": {
+        "und": "t",
+        "custo_unitario_com_bdi": "9.544,40",
+        "custo_parcial": "14.316,60"
+      }
+    }
+  ]
+}

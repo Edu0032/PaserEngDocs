@@ -95,7 +95,7 @@ def split_leading_code_bank_from_description(text: str, *, code: str = "", bank:
     if not tokens:
         return result
 
-    # Candidate windows before the description content. Supports: CADM.01 Próprio ..., 74209/001 SINAPI ..., CP - 120 Próprio ..., ANP 01 Próprio ...
+    # Candidate windows before the description content. Supports: CADM.01 Próprio ..., 12345/001 SINAPI ..., CP - 001 Próprio ..., ABC 01 Próprio ...
     max_code_tokens = min(4, len(tokens))
     for code_len in range(max_code_tokens, 0, -1):
         code_candidate = " ".join(tokens[:code_len])

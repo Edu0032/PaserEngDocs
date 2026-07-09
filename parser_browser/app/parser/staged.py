@@ -32,6 +32,7 @@ from app.parser.document_learning_layer import build_document_learning_profile
 from app.parser.selective_reparse import build_weak_field_reparse_targets
 from app.parser.selective_field_reparse_executor import run_selective_field_reparse_executor
 from app.parser.candidate_profile_consensus_engine import run_candidate_profile_consensus_engine
+from app.parser.line_certainty_closure import run_line_certainty_closure_engine
 from app.parser.evidence_graph import build_evidence_graph, apply_evidence_graph_recheck
 from app.parser.compositions import (
     parse_compositions_document,
@@ -394,7 +395,7 @@ def merge_staged_results(
     sinapi_profile_summary = dict(compositions_stage.get("sinapi_profile_recheck") or {})
     sicro_native_summary = dict(compositions_stage.get("sicro_native") or {})
     profile_recheck_summary = {
-        "version": "v61.0.35-candidate-profile-consensus-engine",
+        "version": "v61.0.75-correction-output-contract-and-review-index",
         "description_registry_size": len(description_registry),
         "evidence_graph": evidence_graph_recheck,
         "budget": budget_profile_recheck,
@@ -550,4 +551,12 @@ def merge_staged_results(
             "etapa": "candidate_profile_consensus_engine",
             "evidencia": consensus_report.get("summary", {}),
         })
+
+    # v61.0.38: final semantic closure pass.  It treats budget rows,
+    # SINAPI-like rows and SICRO section rows as evidence-bound records and
+    # tries to close each one using cross-table facts, auxiliary-global facts,
+    # numeric constraints and fragment ownership before targeted recovery asks
+    # PyMuPDF to sweep unresolved fields.
+    payload, line_closure_report = run_line_certainty_closure_engine(payload, apply=True, max_rounds=int(((context or {}).get("accuracy_profile") or {}).get("max_closure_rounds") or 8))
+    payload.setdefault("meta", {}).setdefault("performance", {})["line_certainty_closure_engine"] = line_closure_report
     return payload

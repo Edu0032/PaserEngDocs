@@ -59,7 +59,7 @@ def test_targeted_recovery_syncs_validation_summary_when_correction_is_clean():
         'documento_correcao': {'resumo': {'total_registros_com_erro': 1}},
     }
     recovery = {'attempted': True, 'patches': []}
-    result = apply_targeted_recovery_to_final_result(final, recovery, version='v61.0.35-candidate-profile-consensus-engine')
+    result = apply_targeted_recovery_to_final_result(final, recovery, version='v61.0.39-deep-area-sweep-iterative-closure')
     assert result['documento_correcao']['resumo']['total_registros_com_erro'] == 0
     assert result['validacao']['resumo']['total_erros'] == 0
     assert result['validacao']['resumo']['tem_erros'] is False

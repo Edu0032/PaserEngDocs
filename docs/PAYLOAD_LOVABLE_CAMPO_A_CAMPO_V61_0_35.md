@@ -10,7 +10,7 @@ O Lovable não deve depender apenas da IA. A interface pode extrair com código 
 
 ```json
 {
-  "version": "v61.0.35-candidate-profile-consensus-engine",
+  "version": "v61.0.39-deep-area-sweep-iterative-closure",
   "base_id": "misto",
   "document": {},
   "ranges": {},

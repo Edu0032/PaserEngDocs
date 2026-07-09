@@ -1,0 +1,15 @@
+{
+  "custom_bank_profiles": {
+    "banco_municipal_exemplo": {
+      "family": "sinapi_like",
+      "columns": [
+        {"header": "CÓD.", "canonical": "codigo"},
+        {"header": "SERVIÇO", "canonical": "descricao"},
+        {"header": "UN", "canonical": "und"},
+        {"header": "QTD", "canonical": "quant"},
+        {"header": "VALOR", "canonical": "valor_unit"},
+        {"header": "TOTAL", "canonical": "total"}
+      ]
+    }
+  }
+}

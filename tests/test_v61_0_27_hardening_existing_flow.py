@@ -26,15 +26,17 @@ def test_sicro_section_regex_uses_word_boundary_not_backspace():
     assert 'from app.parser.sicro_section_patterns import SICRO_SECTION_REGEXES' in comp
 
 
-def test_api_docling_deploy_has_only_docling_service_and_valid_requirements():
+def test_api_docling_has_generic_deploy_docs_and_no_render_lockin():
     req = (ROOT / 'api_docling/requirements.txt').read_text(encoding='utf-8')
     assert '-r requirements.txt' not in req
     assert 'docling' in req
     assert 'fastapi' in req
-    render = (ROOT / 'api_docling/render.yaml').read_text(encoding='utf-8')
-    assert 'api-pdf-normalizer' not in render
-    assert 'requirements-normalizer' not in render
-    assert 'uvicorn app.main:app' in render
+    assert not (ROOT / 'render.yaml').exists()
+    assert not (ROOT / 'api_docling/render.yaml').exists()
+    guide = (ROOT / 'docs/API_DOCLING_LOCAL_E_HOSTING_GENERICO_V61_0_37.md').read_text(encoding='utf-8')
+    assert 'uvicorn app.main:app' in guide
+    assert 'gunicorn app.main:app' in guide
+    assert 'cloudflared tunnel' in guide
 
 
 def test_docling_payload_contract_keeps_header_canonical_mapping_but_removes_fixed_keys():

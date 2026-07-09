@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from app.parser.broken_line_recovery import pollution_reason, similarity
 from app.parser.code_value_classifier import clean_text, norm_text
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 @dataclass(frozen=True)

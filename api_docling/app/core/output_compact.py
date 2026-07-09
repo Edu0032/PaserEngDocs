@@ -867,7 +867,7 @@ def _quality_gate_final(result: dict) -> dict:
         final_validation_synced = False
         issues.append({'code': 'final_validation_not_synced'})
     return {
-        'version': 'v61.0.35-candidate-profile-consensus-engine',
+        'version': 'v61.0.39-deep-area-sweep-iterative-closure',
         'ok': not issues,
         'family_split_ok': family_split_ok,
         'sicro_public_rows_incomplete': sicro_missing[:100],

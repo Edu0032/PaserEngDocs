@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, Tuple
 from app.core.schemas import BlocoComposicao, Composicoes, LinhaComposicao
 
 SICRO_NATIVE_VERSION = "v61.0.20-sicro-audit-confidence-boundary"
-MONOREPO_SICRO_BRIDGE_VERSION = "v61.0.35-candidate-profile-consensus-engine"
+MONOREPO_SICRO_BRIDGE_VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _as_float_ptbr(value: Any) -> float | None:
@@ -50,28 +50,37 @@ def _section_public_key(sec: str) -> str:
 
 
 def _clean_row_for_monorepo(sec: str, row: Dict[str, Any]) -> Dict[str, Any]:
-    """Remove only transient/system evidence from SICRO rows.
+    """Keep native SICRO rows clean before integration.
 
-    v61.0.23 policy: SICRO v20 is authoritative.  The bridge must not
-    reinterpret, rename destructively, or drop domain columns that the native
-    engine already extracted.  Friendly aliases may be added, but original
-    columns remain intact.
+    v61.0.57: do not add friendly/generic aliases in the bridge.  We still keep
+    raw native/fallback text fields so the public exporter can map them to the
+    proper SICRO section vocabulary using a strict whitelist.
     """
     out = dict(row or {})
-    for k in ("_evidence", "_field_evidence", "_confidence", "raw_trace", "_layout_debug"):
+    # Keep section rows native/read-only.  Do not carry generic SINAPI-like
+    # aliases or previous cascade markers into the public SICRO payload.
+    forbidden = {
+        "_evidence", "_field_evidence", "_confidence", "raw_trace",
+        "_layout_debug", "banco_canonico", "_cascaded_from",
+        "sicro_section_totals", "valor_unit", "total", "quant", "und",
+        "natureza", "tipo", "banco_coluna",
+    }
+    # Keep descricao only as last-resort input for older native rows that did
+    # not yet rename the section label; public export will not emit descricao.
+    for k in forbidden:
         out.pop(k, None)
-    # Never pop custo_horario.  Some consumers may still expect custo as an
-    # alias, so add it without replacing the original field.
-    if sec in {"C", "D", "E", "F"} and "custo_horario" in out and "custo" not in out:
-        out["custo"] = out.get("custo_horario")
-    if "banco" in out and out.get("banco") not in (None, ""):
-        out.setdefault("banco_canonico", _canon_bank(out.get("banco")))
     return out
 
 
 def _compact_clean_sicro(clean_comp: Dict[str, Any]) -> Dict[str, Any]:
     sections = dict(clean_comp.get("secoes") or {})
     out: Dict[str, Any] = {}
+    principal = clean_comp.get("principal")
+    if isinstance(principal, dict) and principal:
+        # Keep the native SICRO principal as read-only source of truth for the
+        # public export. Later generic/cascade stages must not overwrite these
+        # printed SICRO values.
+        out["principal"] = dict(principal)
     canonical_sections: Dict[str, Any] = {}
     for sec, sec_data in sections.items():
         public_key = _section_public_key(str(sec))
@@ -137,9 +146,11 @@ def _build_block_from_clean(clean_comp: Dict[str, Any], existing: BlocoComposica
     principal = _line_from_clean_principal(clean_comp)
     if principal is None:
         return None
+    # Official SICRO classification rule: only the item emitted by the native
+    # SICRO engine counts.  Never inherit an item from an existing/budget-created
+    # legacy block, because that promotes auxiliary/global SICRO blocks to
+    # principals and pollutes the final contract.
     item = str((clean_comp.get("principal") or {}).get("item") or clean_comp.get("item") or "").strip()
-    if not item and existing is not None:
-        item = str(getattr(existing, "item", "") or "")
     pages = [int(p) for p in list(clean_comp.get("paginas") or []) if str(p).isdigit()]
     details = dict(getattr(existing, "detalhes", {}) or {}) if existing is not None else {}
     sicro_payload = _compact_clean_sicro(clean_comp)

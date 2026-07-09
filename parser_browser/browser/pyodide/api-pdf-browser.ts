@@ -1,4 +1,4 @@
-const RELEASE_VERSION = 'v61.0.35-candidate-profile-consensus-engine';
+const RELEASE_VERSION = 'v61.0.68-extraction-vs-document-consistency';
 
 export type BrowserParseOptions = {
   base_id?: string;
@@ -38,6 +38,7 @@ export type WorkerInitOptions = {
   normalizerApiKey?: string;
   normalizerApiKeyHeader?: string;
   normalizerTimeoutMs?: number;
+  targetedRecoveryMaxPagesPerBatch?: number;
   allowRelativeDoclingEndpoint?: boolean;
   production?: boolean;
 };
@@ -118,7 +119,6 @@ function optionsToLovablePayload(file: File, options: Omit<BrowserParseOptions, 
   const compStart = Number(options.composicoes_inicio);
   return {
     version: RELEASE_VERSION,
-    base_id: options.base_id || 'misto',
     filename: file.name,
     content_type: file.type || 'application/pdf',
     document: {
@@ -133,42 +133,9 @@ function optionsToLovablePayload(file: File, options: Omit<BrowserParseOptions, 
       budget: (options as any).docling_seed_pages?.budget || (options as any).docling_seed_pages?.budget_header_page || budgetStart,
       composition: (options as any).docling_seed_pages?.composition || (options as any).docling_seed_pages?.composition_schema_page || compStart,
     },
-    docling_seed_pdf_policy: {
-      enabled: true,
-      extract_in_pyodide: true,
-      send_full_pdf_to_docling: false,
-      allow_full_pdf_fallback: false,
-      preserve_full_page: true,
-      deduplicate_pages: true,
-    },
-    runtime: {
-      mode: 'browser_only',
-      strict_validation: !!options.strict_validation,
-      profile: options.performance_profile || 'browser_robust',
-    },
-    output_options: (options as any).output_options || {
-      include_tipo_in_final_json: false,
-      include_summary_rows_raw: true,
-      include_control_line_debug: false,
-      include_docling_page_map: true,
-    },
-    performance: {
-      profile: options.performance_profile || 'browser_robust',
-      composition_text_fallback_mode: 'smart',
-    },
     metadata_extraida_ia: options.metadata_extraida_ia || {},
     ai_hints: (options as any).ai_hints || {},
     tables: (options as any).tables || {},
-    fixed_contract: (options as any).fixed_contract || {},
-    parser_contract: (options as any).parser_contract || {
-      contract_version: RELEASE_VERSION,
-      docling_clean_payload_field: 'docling_clean_payload',
-      tables_contract_field: 'tables',
-      use_top_level_tables_as_table_hints: true,
-      docling_is_primary_structure_source: true,
-      preserve_ignored_columns_for_geometry: true,
-      effective_bounds_rule: 'x0_to_next_physical_x0',
-    },
   };
 }
 
@@ -252,8 +219,6 @@ export class ApiPdfBrowserClient {
     await this.ready();
     const buffer = await file.arrayBuffer();
     const payloadOptions = {
-      base_id: options.base_id || 'misto',
-      performance_profile: options.performance_profile || 'default',
       ...options,
       filename: file.name,
       content_type: file.type || 'application/pdf',
@@ -286,15 +251,16 @@ export class ApiPdfBrowserClient {
       payload: { version: initialPayload.version || RELEASE_VERSION, ...initialPayload },
       filename: file.name,
       contentType: file.type || 'application/pdf',
-      doclingEndpoint: this.initOptions.doclingEndpoint || initialPayload?.docling_api_url,
-      doclingApiKey: this.initOptions.doclingApiKey || initialPayload?.docling_api_key || '',
-      doclingApiKeyHeader: this.initOptions.doclingApiKeyHeader || initialPayload?.docling_api_key_header || 'x-api-key',
-      doclingTimeoutMs: this.initOptions.doclingTimeoutMs || initialPayload?.docling_timeout_ms || 120000,
-      normalizerApiKey: this.initOptions.normalizerApiKey || initialPayload?.normalizer_api_key || '',
-      normalizerApiKeyHeader: this.initOptions.normalizerApiKeyHeader || initialPayload?.normalizer_api_key_header || 'x-api-key',
-      normalizerTimeoutMs: this.initOptions.normalizerTimeoutMs || initialPayload?.normalizer_timeout_ms || 90000,
-      allowRelativeDoclingEndpoint: !!(this.initOptions.allowRelativeDoclingEndpoint || initialPayload?.allow_relative_docling_endpoint),
-      production: !!(this.initOptions.production || initialPayload?.production),
+      doclingEndpoint: this.initOptions.doclingEndpoint,
+      doclingApiKey: this.initOptions.doclingApiKey || '',
+      doclingApiKeyHeader: this.initOptions.doclingApiKeyHeader || 'x-api-key',
+      doclingTimeoutMs: this.initOptions.doclingTimeoutMs || 120000,
+      targetedRecoveryMaxPagesPerBatch: this.initOptions.targetedRecoveryMaxPagesPerBatch || 12,
+      normalizerApiKey: this.initOptions.normalizerApiKey || '',
+      normalizerApiKeyHeader: this.initOptions.normalizerApiKeyHeader || 'x-api-key',
+      normalizerTimeoutMs: this.initOptions.normalizerTimeoutMs || 90000,
+      allowRelativeDoclingEndpoint: !!this.initOptions.allowRelativeDoclingEndpoint,
+      production: !!this.initOptions.production,
     };
     return workerRequest<any>(this.worker, 'docling-only', payload, [buffer], this.statusHandler);
   }
@@ -310,15 +276,16 @@ export class ApiPdfBrowserClient {
       },
       filename: file.name,
       contentType: file.type || 'application/pdf',
-      doclingEndpoint: this.initOptions.doclingEndpoint || initialPayload?.docling_api_url,
-      doclingApiKey: this.initOptions.doclingApiKey || initialPayload?.docling_api_key || '',
-      doclingApiKeyHeader: this.initOptions.doclingApiKeyHeader || initialPayload?.docling_api_key_header || 'x-api-key',
-      doclingTimeoutMs: this.initOptions.doclingTimeoutMs || initialPayload?.docling_timeout_ms || 120000,
-      normalizerApiKey: this.initOptions.normalizerApiKey || initialPayload?.normalizer_api_key || '',
-      normalizerApiKeyHeader: this.initOptions.normalizerApiKeyHeader || initialPayload?.normalizer_api_key_header || 'x-api-key',
-      normalizerTimeoutMs: this.initOptions.normalizerTimeoutMs || initialPayload?.normalizer_timeout_ms || 90000,
-      allowRelativeDoclingEndpoint: !!(this.initOptions.allowRelativeDoclingEndpoint || initialPayload?.allow_relative_docling_endpoint),
-      production: !!(this.initOptions.production || initialPayload?.production),
+      doclingEndpoint: this.initOptions.doclingEndpoint,
+      doclingApiKey: this.initOptions.doclingApiKey || '',
+      doclingApiKeyHeader: this.initOptions.doclingApiKeyHeader || 'x-api-key',
+      doclingTimeoutMs: this.initOptions.doclingTimeoutMs || 120000,
+      targetedRecoveryMaxPagesPerBatch: this.initOptions.targetedRecoveryMaxPagesPerBatch || 12,
+      normalizerApiKey: this.initOptions.normalizerApiKey || '',
+      normalizerApiKeyHeader: this.initOptions.normalizerApiKeyHeader || 'x-api-key',
+      normalizerTimeoutMs: this.initOptions.normalizerTimeoutMs || 90000,
+      allowRelativeDoclingEndpoint: !!this.initOptions.allowRelativeDoclingEndpoint,
+      production: !!this.initOptions.production,
     };
     return workerRequest<LovableFlowResult>(this.worker, 'lovable-flow', payload, [buffer], this.statusHandler, handlers.onPreview);
   }
@@ -349,9 +316,7 @@ export class ApiPdfBrowserClient {
         budget: budgetPayload,
         compositions: compositionsPayload,
         options: {
-          base_id: options.base_id || 'misto',
-          performance_profile: options.performance_profile || 'default',
-          ...options,
+                  ...options,
           filename: 'upload.pdf',
           content_type: 'application/pdf',
         },

@@ -1,5 +1,5 @@
 {
-  "_schema_version": "v61.0.35-candidate-profile-consensus-engine",
+  "_schema_version": "v61.0.39-deep-area-sweep-iterative-closure",
   "parser_profile": "documento_misto",
   "documento_misto": {
     "nome": "documento_misto",
@@ -248,18 +248,18 @@
       "composicao_principal": {
         "regex": "^\\d{7}$",
         "examples": [
-          "1107892",
-          "5503041",
-          "2003373"
+          "2345678",
+          "1234567",
+          "7654321"
         ],
         "meaning": "código numérico de composição/serviço SICRO"
       },
       "atividade_auxiliar": {
         "regex": "^\\d{7}$",
         "examples": [
-          "1109669",
-          "4805750",
-          "3103302"
+          "3456789",
+          "4567890",
+          "5678901"
         ],
         "meaning": "atividade auxiliar SICRO"
       },
@@ -677,7 +677,7 @@
   "project": {
     "name": "Api_pdf",
     "document_model": "mixed_document",
-    "current_release": "v61.0.35-candidate-profile-consensus-engine",
+    "current_release": "v61.0.39-deep-area-sweep-iterative-closure",
     "goal": "Parser browser/Pyodide com APIs Docling/Normalizer, recuperação transacional, perfil SICRO por seções e fidelidade numérica total",
     "deployment_target": "fastapi_render",
     "integration_target": "lovable_plus_docling",
@@ -1408,8 +1408,8 @@
         "composicao_atual_7_digitos": {
           "regex": "^\\d{7}$",
           "examples": [
-            "1107892",
-            "4805750",
+            "2345678",
+            "4567890",
             "5914655"
           ]
         },
@@ -2150,7 +2150,7 @@
     "principal_line_as_section_p": true
   },
   "metadata": {
-    "current_release": "v61.0.35-candidate-profile-consensus-engine"
+    "current_release": "v61.0.39-deep-area-sweep-iterative-closure"
   },
   "knowledge_base": {
     "schema_version": "kb.v1",
@@ -2343,7 +2343,7 @@
         "examples": [
           "90777",
           "95402",
-          "74209/001",
+          "12345/001",
           "103672-01"
         ],
         "description": "Composições SINAPI usuais, preservando variantes com / ou - sem confundir com valores monetários."
@@ -2354,7 +2354,7 @@
         "regex": "^(?:0{2,}\\d{3,}|0{2,}\\d{3,}[/-][0-9A-Z]{1,6})$",
         "examples": [
           "00002706",
-          "00006079",
+          "00012345",
           "00002706/001"
         ],
         "description": "Insumos SINAPI geralmente começam com zeros."
@@ -2364,9 +2364,9 @@
         "family": "proprio",
         "regex": "^(?:COMP[. -]?[A-Z0-9. -]+|CP\\s*-?\\s*\\d+|ANP\\s*\\d+|[A-Z]{2,}[. -]?[A-Z0-9./ -]+)$",
         "examples": [
-          "COMP.JCO.3",
-          "CP - 120",
-          "ANP 01"
+          "COMP.EXEMPLO.1",
+          "CP - 001",
+          "ABC 01"
         ],
         "description": "Padrões editáveis de composições próprias."
       },
@@ -2375,9 +2375,9 @@
         "family": "sicro",
         "regex": "^\\d{7}$",
         "examples": [
-          "5503041",
-          "2003373",
-          "1107892"
+          "1234567",
+          "7654321",
+          "2345678"
         ],
         "description": "Composição principal/auxiliar SICRO."
       },
@@ -2560,7 +2560,7 @@
   "sinapi_like_parser": {
     "profile_recheck": {
       "enabled": true,
-      "version": "v61.0.35-candidate-profile-consensus-engine",
+      "version": "v61.0.39-deep-area-sweep-iterative-closure",
       "uses_docling_column_map": true,
       "uses_pymupdf_words": true,
       "passes": [

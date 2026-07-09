@@ -137,6 +137,13 @@ def _is_sicro_special_block(block: Any) -> bool:
 def _sicro_dict_from_block(block: Any) -> Dict[str, Any]:
     data = _as_dict(block)
     detalhes = data.get("detalhes") if isinstance(data.get("detalhes"), dict) else {}
+    # v61.0.57 public contract: SICRO sections live directly on the block.
+    if isinstance(data.get("secoes"), dict) and data.get("secoes"):
+        out = {"secoes": dict(data.get("secoes") or {})}
+        for key in ("validacao", "resumos", "document_consistency", "document_consistency_warnings", "text_integrity", "text_audit_summary"):
+            if isinstance(data.get(key), (dict, list)) and data.get(key):
+                out[key] = data.get(key)
+        return out
     if isinstance(data.get("sicro"), dict):
         return dict(data.get("sicro") or {})
     if isinstance(detalhes.get("sicro"), dict):

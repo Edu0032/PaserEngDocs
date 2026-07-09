@@ -1,0 +1,52 @@
+{
+  "version": "v61.0.39-deep-area-sweep-iterative-closure",
+  "base_id": "misto",
+  "document": {
+    "filename": "",
+    "page_count": 0,
+    "title": "",
+    "obra_nome": "",
+    "obra_localizacao": "",
+    "orgao_nome": ""
+  },
+  "ranges": {
+    "budget": {"start": 0, "end": 0},
+    "compositions": {"start": 0, "end": 0}
+  },
+  "seed_pages": {
+    "budget": 0,
+    "composition": 0
+  },
+  "document_hints": {
+    "families_detected": [],
+    "custom_bank_ids": [],
+    "recurring_noise_terms": []
+  },
+  "tables": {
+    "budget": {
+      "header_rows_observed": 0,
+      "multiline_header": false,
+      "physical_column_count_expected": 0,
+      "logical_column_count_expected": 0,
+      "domain_column_count_expected": 0,
+      "table_parent_header": {"text": "", "role": "table_title", "action": "exclude_from_column_headers", "canonical": ""},
+      "observed_headers": [],
+      "header_groups": [],
+      "non_column_context": [],
+      "header_noise_terms": []
+    },
+    "composition": {
+      "header_rows_observed": 0,
+      "multiline_header": false,
+      "physical_column_count_expected": 0,
+      "logical_column_count_expected": 0,
+      "domain_column_count_expected": 0,
+      "table_parent_header": {"texts": [], "role": "table_title", "action": "exclude_from_column_headers", "canonical": ""},
+      "observed_headers": [],
+      "control_column": {},
+      "non_column_context": [],
+      "header_noise_terms": []
+    }
+  },
+  "user_base_config": {}
+}

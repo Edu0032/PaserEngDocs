@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>API PDF Parser — v61.0.35-candidate-profile-consensus-engine</title>
+<title>API PDF Parser — v61.0.74-release-integrity-and-diff-scan-hardening</title>
 <style>
 :root { color-scheme: light dark; --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#38bdf8; --border:#334155; --ok:#86efac; --warn:#fde68a; --err:#fca5a5; }
 body { margin:0; font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--text); }
@@ -27,8 +27,8 @@ pre { white-space:pre-wrap; word-break:break-word; background:#020617; border:1p
 </head>
 <body>
 <header>
-  <h1>API PDF Parser — v61.0.35-candidate-profile-consensus-engine</h1>
-  <div class="sub">HTML local unificado. Os botões principais usam <b>Pyodide/worker</b>: o PDF completo fica no navegador, o worker gera <b>docling-seed-pages.pdf</b> e esse mini-PDF é enviado para a API Docling e depois para a API Normalizer. Este HTML não chama <code>/simulate/lovable-flow</code>.</div>
+  <h1>API PDF Parser — v61.0.74-release-integrity-and-diff-scan-hardening</h1>
+  <div class="sub">HTML local unificado. Os botões principais usam <b>Pyodide/worker</b>: o PDF completo fica no navegador, o worker gera <b>docling-seed-pages.pdf</b> e esse mini-PDF é enviado para a API Docling. O normalizer/recovery são locais no Pyodide. Este HTML não chama <code>/simulate/lovable-flow</code>.</div>
 </header>
 <main>
 <section class="panel">
@@ -37,11 +37,11 @@ pre { white-space:pre-wrap; word-break:break-word; background:#020617; border:1p
     <label>Modo Docling<select id="apiMode"><option value="local" selected>Local HTTP</option><option value="real">API real/Render</option><option value="relative">Mesmo servidor/relativo</option></select></label>
   </div>
   <label>Endpoint Docling<input id="doclingEndpoint" value="http://127.0.0.1:8000/docling/extract-table-structure"></label>
-  <label>Endpoint Normalizer opcional (somente modo API)<input id="normalizerEndpoint" value=""></label>
-  <div class="grid3">
+    <div class="grid3">
     <label>API key<input id="doclingApiKey" placeholder="opcional"></label>
     <label>Header<input id="doclingApiKeyHeader" value="x-api-key"></label>
-    <label>Timeout Docling ms<input id="doclingTimeoutMs" type="number" value="120000"></label>
+    <label>Timeout Docling ms<input id="doclingTimeoutMs" type="number" value="240000"></label>
+    <label>Targeted recovery págs/lote<input id="targetedRecoveryBatchSize" type="number" min="1" max="12" value="12"></label>
   </div>
   <div class="row" style="margin:8px 0 4px">
     <label style="display:flex;gap:8px;align-items:center;margin:0"><input id="bypassDoclingCache" type="checkbox" style="width:auto"> Ignorar cache Docling nesta execução</label>
@@ -58,12 +58,12 @@ pre { white-space:pre-wrap; word-break:break-word; background:#020617; border:1p
   <div class="row" style="margin:10px 0">
     <button id="applyFieldsBtn" type="button" class="secondary">Aplicar campos no payload</button>
     <button id="validatePayloadBtn" type="button" class="secondary">Validar payload</button>
-    <button id="apiOnlyBtn" type="button" class="secondary">Testar Docling + Normalizer com seed</button>
+    <button id="apiOnlyBtn" type="button" class="secondary">Testar Docling com seed</button>
     <button id="runBtn" type="button">Executar fluxo completo browser</button>
     <button id="resetBtn" type="button" class="danger">Resetar worker</button>
   </div>
   <details open><summary>Payload Lovable/API preservado <span class="badge">samples por coluna</span></summary>
-    <div class="hint">O payload mantém <b>tables.observed_headers</b>, canônicos, <b>fixed_contract</b>, políticas Docling/crop/merge e agora inclui <b>sample_text/content_text/first_row_text</b> para orientar o normalizador quando o Docling funde ou perde colunas.</div>
+    <div class="hint">O payload semântico mantém <b>tables.observed_headers</b>, canônicos, <b>sample_text/content_text/first_row_text</b>, colunas agrupadas e colunas ignoradas. A configuração da API é runtime do worker; não é dado semântico do documento. <b>Base_config</b>: o ZIP traz o default; Lovable pode enviar overlay admin e overlay usuário fora do payload, persistidos fora do ZIP e mesclados em memória.</div>
     <textarea id="payloadJson"></textarea>
   </details>
   <div class="hint" id="summaryLine">Aguardando arquivo.</div>
@@ -74,33 +74,49 @@ pre { white-space:pre-wrap; word-break:break-word; background:#020617; border:1p
     <button class="tab-btn active" data-tab="preview">Preview orçamento</button>
     <button class="tab-btn" data-tab="final">JSON final</button>
     <button class="tab-btn" data-tab="correction">Correção</button>
+    <button class="tab-btn" data-tab="evidence">Evidências</button>
+    <button class="tab-btn" data-tab="enrichment">Enriquecimento</button>
     <button class="tab-btn" data-tab="docling">Docling/seed</button>
     <button class="tab-btn" data-tab="payload">Payload usado</button>
     <button class="tab-btn" data-tab="budget">Budget stage</button>
     <button class="tab-btn" data-tab="compositions">Compositions stage</button>
     <button class="tab-btn" data-tab="accuracy">Acurácia</button>
+    <button class="tab-btn" data-tab="contract">Contrato outputs</button>
+    <button class="tab-btn" data-tab="lovablecontract">Contrato Lovable</button>
+    <button class="tab-btn" data-tab="entityconf">Confiança entidades</button>
+    <button class="tab-btn" data-tab="reviews">Revisões Lovable</button>
+    <button class="tab-btn" data-tab="coverage">Cobertura</button>
+    <button class="tab-btn" data-tab="baseconfig">Base config</button>
     <button class="tab-btn" data-tab="reparse">Reparse seletivo</button>
     <button class="tab-btn" data-tab="consensus">Consenso de perfis</button>
     <button class="tab-btn" data-tab="debug">Debug overlay</button>
   </div>
-  <div class="row" style="margin-bottom:10px"><button id="copyCurrentBtn" class="secondary" type="button">Copiar aba</button><button id="downloadCurrentBtn" class="secondary" type="button">Baixar aba</button></div>
+  <div class="row" style="margin-bottom:10px"><button id="copyCurrentBtn" class="secondary" type="button">Copiar aba</button><button id="downloadCurrentBtn" class="secondary" type="button">Baixar aba</button><button id="downloadAllBtn" class="secondary" type="button">Baixar todos outputs</button></div>
   <div id="tab-preview"><pre id="previewOut"></pre></div>
   <div id="tab-final" class="hidden"><pre id="finalOut"></pre></div>
   <div id="tab-correction" class="hidden"><pre id="correctionOut"></pre></div>
+  <div id="tab-evidence" class="hidden"><pre id="evidenceOut"></pre></div>
+  <div id="tab-enrichment" class="hidden"><pre id="enrichmentOut"></pre></div>
   <div id="tab-docling" class="hidden"><pre id="doclingOut"></pre></div>
   <div id="tab-payload" class="hidden"><pre id="payloadOut"></pre></div>
   <div id="tab-budget" class="hidden"><pre id="budgetOut"></pre></div>
   <div id="tab-compositions" class="hidden"><pre id="compositionsOut"></pre></div>
   <div id="tab-accuracy" class="hidden"><pre id="accuracyOut"></pre></div>
+  <div id="tab-contract" class="hidden"><pre id="contractOut"></pre></div>
+  <div id="tab-lovablecontract" class="hidden"><pre id="lovableContractOut"></pre></div>
+  <div id="tab-entityconf" class="hidden"><pre id="entityConfOut"></pre></div>
+  <div id="tab-reviews" class="hidden"><pre id="reviewsOut"></pre></div>
+  <div id="tab-coverage" class="hidden"><pre id="coverageOut"></pre></div>
+  <div id="tab-baseconfig" class="hidden"><pre id="baseConfigOut"></pre></div>
   <div id="tab-reparse" class="hidden"><pre id="reparseOut"></pre></div>
   <div id="tab-consensus" class="hidden"><pre id="consensusOut"></pre></div>
   <div id="tab-debug" class="hidden"><pre id="debugOut"></pre></div>
 </section>
 </main>
 <script type="module">
-const RELEASE = "v61.0.35-candidate-profile-consensus-engine";
+const RELEASE = "v61.0.74-release-integrity-and-diff-scan-hardening";
 const DEFAULT_PAYLOAD = {
-  "version": "v61.0.35-candidate-profile-consensus-engine",
+  "version": "v61.0.74-release-integrity-and-diff-scan-hardening",
   "document": {
     "filename": "",
     "page_count": 148,
@@ -119,21 +135,6 @@ const DEFAULT_PAYLOAD = {
   "docling_seed_pages": {
     "budget": 2,
     "composition": 9
-  },
-  "docling_api_url": "http://127.0.0.1:8000/docling/extract-table-structure",
-  "docling_api_key": "",
-  "docling_api_key_header": "x-api-key",
-  "docling_timeout_ms": 120000,
-  "normalizer_timeout_ms": 90000,
-  "normalizer_enabled": true,
-  "normalizer_mode": "local_pyodide",
-  "docling_seed_pdf_policy": {
-    "enabled": true,
-    "extract_in_pyodide": true,
-    "send_full_pdf_to_docling": false,
-    "allow_full_pdf_fallback": false,
-    "preserve_full_page": true,
-    "deduplicate_pages": true
   },
   "ai_profile_name": "deracre_exemplo_v61_0_9_payload_organizado",
   "tables": {
@@ -169,9 +170,9 @@ const DEFAULT_PAYLOAD = {
           "canonical": "codigo",
           "type": "column",
           "header_text": "CÓDIGO",
-          "sample_text": "74209/001",
-          "content_text": "74209/001",
-          "first_row_text": "74209/001"
+          "sample_text": "12345/001",
+          "content_text": "12345/001",
+          "first_row_text": "12345/001"
         },
         {
           "text": "FONTE",
@@ -269,7 +270,7 @@ const DEFAULT_PAYLOAD = {
       "body_stop_markers_legacy": [
         "1 SERVIÇOS PRELIMINARES",
         "1.1 PLACA DE OBRA",
-        "74209/001",
+        "12345/001",
         "93207",
         "SINAPI",
         "Próprio"
@@ -314,10 +315,10 @@ const DEFAULT_PAYLOAD = {
           "text": "Código",
           "canonical": "codigo",
           "type": "column",
-          "sample_text": "74209/001",
+          "sample_text": "12345/001",
           "header_text": "Código",
-          "content_text": "74209/001",
-          "first_row_text": "74209/001"
+          "content_text": "12345/001",
+          "first_row_text": "12345/001"
         },
         {
           "text": "Banco",
@@ -408,73 +409,6 @@ const DEFAULT_PAYLOAD = {
           "Insumo"
         ]
       }
-    }
-  },
-  "fixed_contract": {
-    "runtime_profile": "browser_robust",
-    "ocr_enabled": false,
-    "header_window_policy": {
-      "budget": {
-        "max_header_lines": 2,
-        "max_vertical_gap": 1.4,
-        "allow_multiline_header": true,
-        "stop_on_first_body_marker": true
-      },
-      "composition": {
-        "max_header_lines": 2,
-        "max_vertical_gap": 1.2,
-        "allow_multiline_header": true,
-        "stop_on_first_body_marker": true
-      }
-    },
-    "crop_policy": {
-      "budget": {
-        "mode": "line_window",
-        "lines_above": 1,
-        "lines_below": 4,
-        "min_vertical_padding": 6.0,
-        "horizontal_padding": 20.0,
-        "allow_group_completion_expansion": false,
-        "max_extra_lines": 0,
-        "only_if_missing_group_children": true
-      },
-      "composition": {
-        "mode": "line_window",
-        "lines_above": 1,
-        "lines_below": 4,
-        "min_vertical_padding": 6.0,
-        "horizontal_padding": 20.0,
-        "allow_group_completion_expansion": false,
-        "max_extra_lines": 0,
-        "only_if_missing_group_children": true
-      }
-    },
-    "template_merge_policy": {
-      "enabled": true,
-      "allow_merge_before_fallback": true,
-      "min_complementary_gain": 1,
-      "require_same_kind": true,
-      "require_same_original_page": true,
-      "max_candidates_to_consider": 4
-    },
-    "docling_execution_policy": {
-      "always_run": true,
-      "required_as_primary": true,
-      "fallback_role": "diagnostic_only",
-      "max_docling_attempts": 2,
-      "force_docling_only": false,
-      "allow_fallback": true
-    },
-    "geometry_normalizer": {
-      "enabled": true,
-      "mode": "guarded_lite",
-      "max_body_rows": 6,
-      "max_words": 500,
-      "only_if_needed": true,
-      "debug_raw_geometry": false,
-      "normalize_scope": "problem_regions_only",
-      "preserve_docling_geometry_by_default": true,
-      "revert_if_sample_validation_fails": true
     }
   },
   "ai_hints": {
@@ -596,32 +530,7 @@ const DEFAULT_PAYLOAD = {
     "anomalies": [],
     "extra": {}
   },
-  "runtime": {
-    "mode": "browser_only",
-    "strict_validation": false,
-    "profile": "browser_robust"
-  },
-  "performance": {
-    "profile": "browser_robust",
-    "composition_text_fallback_mode": "smart"
-  },
-  "output_options": {
-    "include_tipo_in_final_json": false,
-    "include_summary_rows_raw": true,
-    "include_control_line_debug": false,
-    "include_docling_page_map": true
-  },
-  "base_id": "misto",
-  "parser_contract": {
-    "contract_version": "v61.0.35-candidate-profile-consensus-engine",
-    "docling_clean_payload_field": "docling_clean_payload",
-    "tables_contract_field": "tables",
-    "use_top_level_tables_as_table_hints": true,
-    "docling_is_primary_structure_source": true,
-    "preserve_ignored_columns_for_geometry": true,
-    "effective_bounds_rule": "x0_to_next_physical_x0"
-  },
-  "request_timeout_ms": 600000
+  "payload_contract_note": "Payload contém somente informações do documento. Endpoint, cache, timeout, normalizer, políticas internas e base_config ficam no runtime/base_config da plataforma."
 };
 const isFastApiStatic = location.pathname === '/simulator' || location.pathname.startsWith('/static/');
 const isDemoSubpath = location.pathname.includes('/demo/');
@@ -629,7 +538,7 @@ const assetBase = isFastApiStatic ? '/static/' : (isDemoSubpath ? '../pyodide/' 
 const moduleUrl = isFastApiStatic ? '/static/api-pdf-browser.js' : './api-pdf-browser.js';
 const { ApiPdfBrowserClient, createDownload } = await import(moduleUrl);
 const $ = (id) => document.getElementById(id);
-const outputs = { preview: $('previewOut'), final: $('finalOut'), correction: $('correctionOut'), docling: $('doclingOut'), payload: $('payloadOut'), budget: $('budgetOut'), compositions: $('compositionsOut'), accuracy: $('accuracyOut'), reparse: $('reparseOut'), consensus: $('consensusOut'), debug: $('debugOut') };
+const outputs = { preview: $('previewOut'), final: $('finalOut'), correction: $('correctionOut'), evidence: $('evidenceOut'), enrichment: $('enrichmentOut'), docling: $('doclingOut'), payload: $('payloadOut'), budget: $('budgetOut'), compositions: $('compositionsOut'), accuracy: $('accuracyOut'), contract: $('contractOut'), lovablecontract: $('lovableContractOut'), entityconf: $('entityConfOut'), reviews: $('reviewsOut'), coverage: $('coverageOut'), baseconfig: $('baseConfigOut'), reparse: $('reparseOut'), consensus: $('consensusOut'), debug: $('debugOut') };
 let currentTab = 'preview';
 let client = null;
 let artifacts = {};
@@ -642,6 +551,18 @@ function render(out, value) { out.textContent = typeof value === 'string' ? valu
 function setTab(name) { currentTab=name; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); Object.keys(outputs).forEach(k=> $('tab-'+k).classList.toggle('hidden', k!==name)); }
 document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => setTab(b.dataset.tab));
 function clonePayload() { return JSON.parse(JSON.stringify(DEFAULT_PAYLOAD)); }
+const RUNTIME_PAYLOAD_FIELDS = [
+  'docling_api_url','docling_api_key','docling_api_key_header','docling_timeout_ms',
+  'normalizer_timeout_ms','normalizer_enabled','normalizer_mode','normalizer_api_key',
+  'normalizer_api_key_header','docling_seed_pdf_policy','bypass_cache',
+  'clear_docling_cache_before_run','targeted_recovery_max_pages_per_batch',
+  'request_timeout_ms','runtime','performance','output_options','parser_contract','base_id'
+];
+function stripRuntimePayloadFields(payload) {
+  for (const key of RUNTIME_PAYLOAD_FIELDS) delete payload[key];
+  payload.payload_contract_note = 'Payload contém somente informações do documento; configurações internas/API/cache/timeout ficam no base_config/runtime da plataforma.';
+  return payload;
+}
 function applyFields(payload) {
   const file = $('pdfFile').files[0];
   payload.version = RELEASE;
@@ -650,29 +571,14 @@ function applyFields(payload) {
   payload.document = { ...(payload.document || {}), filename: file?.name || payload.document?.filename || '', page_count: Number(payload.document?.page_count || 148) };
   payload.ranges = { budget: { start: Number($('budgetStart').value), end: Number($('budgetEnd').value) }, compositions: { start: Number($('compStart').value), end: Number($('compEnd').value) } };
   payload.docling_seed_pages = { budget: Number($('budgetSeed').value), composition: Number($('compositionSeed').value) };
-  payload.docling_api_url = $('doclingEndpoint').value.trim();
-  payload.docling_api_key = $('doclingApiKey').value.trim();
-  payload.docling_api_key_header = $('doclingApiKeyHeader').value.trim() || 'x-api-key';
-  payload.docling_timeout_ms = Number($('doclingTimeoutMs').value || 120000);
-  payload.bypass_cache = !!$('bypassDoclingCache').checked;
-  payload.clear_docling_cache_before_run = !!$('clearDoclingCache').checked;
-  payload.normalizer_timeout_ms = 90000;
-  payload.normalizer_enabled = true;
-  payload.normalizer_mode = 'local_pyodide';
-  payload.docling_seed_pdf_policy = { enabled:true, extract_in_pyodide:true, send_full_pdf_to_docling:false, allow_full_pdf_fallback:false, preserve_full_page:true, deduplicate_pages:true, ...(payload.docling_seed_pdf_policy || {}) };
-  payload.docling_seed_pdf_policy.send_full_pdf_to_docling = false;
-  payload.docling_seed_pdf_policy.allow_full_pdf_fallback = false;
-  payload.performance = { profile:'browser_robust', composition_text_fallback_mode:'smart', ...(payload.performance || {}) };
-  payload.output_options = { include_tipo_in_final_json:false, include_summary_rows_raw:true, include_control_line_debug:false, include_docling_page_map:true, ...(payload.output_options || {}) };
-  payload.parser_contract = { ...(payload.parser_contract || {}), contract_version: RELEASE, docling_is_primary_structure_source:true, preserve_ignored_columns_for_geometry:true, use_top_level_tables_as_table_hints:true, normalizer_is_refinement_source:true, process_only_anomalies:true, lock_good_columns:true };
-  return payload;
+  return stripRuntimePayloadFields(payload);
 }
 function readPayload() { return applyFields(JSON.parse($('payloadJson').value)); }
 function writePayload(payload) { $('payloadJson').value = JSON.stringify(applyFields(payload), null, 2); render(outputs.payload, readPayload()); }
 function validatePayload(payload) {
   const errors=[]; const comp=payload.tables?.composition?.observed_headers || []; const budget=payload.tables?.budget?.observed_headers || [];
-  if (!payload.docling_api_url) errors.push('docling_api_url ausente.');
-  if (payload.docling_seed_pdf_policy?.send_full_pdf_to_docling) errors.push('send_full_pdf_to_docling deve ser false.');
+  const forbidden = RUNTIME_PAYLOAD_FIELDS.filter(k => Object.prototype.hasOwnProperty.call(payload, k));
+  if (forbidden.length) errors.push('Payload contém campos de runtime/base_config que devem ficar fora do payload: '+forbidden.join(', '));
   if (!comp.some(h => h.canonical==='codigo' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('composition.codigo sem sample_text/content_text.');
   if (!comp.some(h => h.canonical==='banco' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('composition.banco sem sample_text/content_text.');
   if (!budget.some(h => h.canonical==='codigo' && (h.sample_text || h.content_text || h.first_row_text))) errors.push('budget.codigo sem sample_text/content_text.');
@@ -684,9 +590,8 @@ function endpointForMode() {
   if (mode==='relative') return '/docling/extract-table-structure';
   return $('doclingEndpoint').value || 'https://seu-servico-docling.onrender.com/docling/extract-table-structure';
 }
-function normalizerEndpointForMode() { return ''; }
-$('apiMode').onchange = () => { $('doclingEndpoint').value = endpointForMode(); $('normalizerEndpoint').value = normalizerEndpointForMode(); writePayload(readPayload()); };
-['doclingEndpoint','normalizerEndpoint','doclingApiKey','doclingApiKeyHeader','doclingTimeoutMs','bypassDoclingCache','clearDoclingCache','budgetSeed','compositionSeed','budgetStart','budgetEnd','compStart','compEnd'].forEach(id => $(id).addEventListener('change', () => writePayload(readPayload())));
+$('apiMode').onchange = () => { $('doclingEndpoint').value = endpointForMode(); writePayload(readPayload()); };
+['doclingEndpoint','doclingApiKey','doclingApiKeyHeader','doclingTimeoutMs','targetedRecoveryBatchSize','bypassDoclingCache','clearDoclingCache','budgetSeed','compositionSeed','budgetStart','budgetEnd','compStart','compEnd'].forEach(id => $(id).addEventListener('change', () => writePayload(readPayload())));
 $('pdfFile').addEventListener('change', () => { const f=$('pdfFile').files[0]; $('summaryLine').textContent = f ? `Arquivo: ${f.name} (${f.size.toLocaleString('pt-BR')} bytes)` : 'Aguardando arquivo.'; writePayload(readPayload()); });
 function statusHandler(stage, detail) {
   if (stage === 'seed-pdf-ready') log(`[seed-pdf] original_size_bytes=${detail.originalSizeBytes} seed_size_bytes=${detail.seedSizeBytes} page_map=${JSON.stringify(detail.pageMap || {})} sent_pdf_kind=${detail.sentPdfKind}`, 'ok');
@@ -704,6 +609,14 @@ function statusHandler(stage, detail) {
   else if (stage === 'normalizer-response-received') log(`[normalizer-local] resposta em ${Math.round((detail.elapsedMs||0)/100)/10}s; refined=${JSON.stringify(detail.refinedColumns||[])} unresolved=${JSON.stringify(detail.unresolvedColumns||[])}`, 'ok');
   else if (stage === 'normalizer-fallback-to-docling') log(`[normalizer-local] fallback para Docling: ${detail.code || ''} ${detail.message || ''}`, 'warn');
 
+  else if (stage === 'physical-evidence-index-started') log(`[physical-evidence] iniciado: ${detail.note || ''}`, 'warn');
+  else if (stage === 'physical-evidence-index-finished') log(`[physical-evidence] concluído: keys=${detail.keys||0}, ocorrências=${detail.occurrences||0}, closed100=${detail.closed100||0}, unresolved=${detail.unresolved||0}`, 'ok');
+  else if (stage === 'physical-evidence-index-failed-nonfatal') log(`[physical-evidence] falha não fatal: ${detail.code||''} ${detail.message||''}`, 'warn');
+  else if (stage === 'output-documents-organized') log(`[outputs] documentos organizados: correction=${!!detail.hasCorrection}, evidence=${!!detail.hasEvidence}, enrichment=${!!detail.hasEnrichment}`, 'ok');
+  else if (stage === 'output-documents-organizer-failed-nonfatal') log(`[outputs] organização falhou sem derrubar o fluxo: ${detail.message||''}`, 'warn');
+  else if (stage === 'targeted-recovery-batch-started') log(`[targeted-recovery] lote ${detail.batch||'?'} de ${detail.totalBatches||'?'} iniciado; páginas=${JSON.stringify(detail.pages||[])}; alvos=${detail.targets||0}`, 'warn');
+  else if (stage === 'targeted-recovery-batch-finished') log(`[targeted-recovery] lote ${detail.batch||'?'} concluído; patches=${detail.patches||0}, unresolved=${detail.unresolved||0}`, 'ok');
+  else if (stage === 'targeted-recovery-batch-failed-nonfatal') log(`[targeted-recovery] lote ${detail.batch||'?'} falhou sem derrubar o fluxo: ${detail.error?.message||''}`, 'warn');
   else if (stage === 'targeted-recovery-pdf-building') log(`[targeted-recovery] gerando mini-PDF das páginas ${JSON.stringify(detail.pages||[])}`, 'warn');
   else if (stage === 'normalizer-local-recovery-started') log(`[targeted-recovery-local] processando ${detail.targets||0} alvos no Pyodide; páginas=${JSON.stringify(detail.pages||[])}`, 'warn');
   else if (stage === 'normalizer-local-recovery-finished') log(`[targeted-recovery-local] concluído: patches=${detail.patches||0}, unresolved=${detail.unresolved||0}`, 'ok');
@@ -728,22 +641,22 @@ function statusHandler(stage, detail) {
 function createClient() {
   return new ApiPdfBrowserClient({
     workerUrl: assetBase + 'pyodide-parser-worker.js', manifestUrl: assetBase + 'manifest.json', sourceArchiveUrl: assetBase + 'api_pdf_pyodide_src.zip', versionTag: RELEASE,
-    doclingEndpoint: $('doclingEndpoint').value.trim(), normalizerEndpoint: $('normalizerEndpoint').value.trim(), normalizerMode: 'local_pyodide', doclingApiKey: $('doclingApiKey').value.trim(), doclingApiKeyHeader: $('doclingApiKeyHeader').value.trim() || 'x-api-key', doclingTimeoutMs: Number($('doclingTimeoutMs').value || 120000), normalizerTimeoutMs: 90000, bypassDoclingCache: !!$('bypassDoclingCache').checked, clearDoclingCacheBeforeRun: !!$('clearDoclingCache').checked, allowRelativeDoclingEndpoint: $('apiMode').value === 'relative', production: $('apiMode').value === 'real'
+    doclingEndpoint: $('doclingEndpoint').value.trim(), normalizerEndpoint: '', normalizerMode: 'local_pyodide', doclingApiKey: $('doclingApiKey').value.trim(), doclingApiKeyHeader: $('doclingApiKeyHeader').value.trim() || 'x-api-key', doclingTimeoutMs: Number($('doclingTimeoutMs').value || 240000), targetedRecoveryMaxPagesPerBatch: Math.min(12, Math.max(1, Number($('targetedRecoveryBatchSize').value || 12))), normalizerTimeoutMs: 90000, bypassDoclingCache: !!$('bypassDoclingCache').checked, clearDoclingCacheBeforeRun: !!$('clearDoclingCache').checked, allowRelativeDoclingEndpoint: $('apiMode').value === 'relative', production: $('apiMode').value === 'real'
   }, statusHandler);
 }
 async function ensureClient() { if (!client) client = createClient(); await client.ready(); return client; }
 async function requireFile() { const f=$('pdfFile').files[0]; if(!f) throw new Error('Selecione um PDF.'); return f; }
 async function runDoclingOnly() {
   const file = await requireFile(); const payload = readPayload(); const errors=validatePayload(payload); if(errors.length) throw new Error(errors.join('\\n'));
-  artifacts.payload = payload; render(outputs.payload, payload); setTab('docling'); log('API Docling + Normalizer iniciados pelo worker. O PDF completo não será enviado às APIs; apenas o seed.', 'warn');
-  const c = await ensureClient(); const result = await c.runDoclingOnly(file, payload); artifacts.docling=result; render(outputs.docling, result); log('API Docling + Normalizer concluídas com mini-PDF seed.', 'ok');
+  artifacts.payload = payload; render(outputs.payload, payload); setTab('docling'); log('API Docling iniciada pelo worker. O PDF completo não será enviado; apenas o seed.', 'warn');
+  const c = await ensureClient(); const result = await c.runDoclingOnly(file, payload); artifacts.docling=result; render(outputs.docling, result); log('API Docling concluída com mini-PDF seed.', 'ok');
 }
 async function runFullFlow() {
   const file = await requireFile(); const payload = readPayload(); const errors=validatePayload(payload); if(errors.length) throw new Error(errors.join('\\n'));
   artifacts.payload=payload; render(outputs.payload,payload); log('Fluxo completo browser iniciado. Este caminho NÃO chama /simulate/lovable-flow.', 'warn'); setTab('preview');
   const c = await ensureClient(); const flowWrap = await c.parseWithPreview(file, payload, { onPreview: (preview) => { artifacts.preview=preview; render(outputs.preview, preview); setTab('preview'); } });
-  const flow=flowWrap.flow; artifacts.flow=flow; artifacts.docling={ docling_seed_pdf: flow.docling_seed_pdf, docling_response: flow.docling_response }; artifacts.final=flow.final_result; artifacts.correction=flow.correction_document; artifacts.budget=flow.budget_stage; artifacts.compositions=flow.compositions_stage; artifacts.accuracy=flow.final_result?.meta?.accuracy_report || {}; artifacts.reparse=flow.final_result?.meta?.performance?.selective_field_reparse_executor || {}; artifacts.consensus=flow.final_result?.meta?.performance?.candidate_profile_consensus_engine || {}; artifacts.debug=flow.final_result?.meta?.debug_overlay || {}; 
-  render(outputs.docling, artifacts.docling); render(outputs.final, artifacts.final); render(outputs.correction, artifacts.correction); render(outputs.budget, artifacts.budget); render(outputs.compositions, artifacts.compositions); render(outputs.accuracy, artifacts.accuracy); render(outputs.reparse, artifacts.reparse); render(outputs.consensus, artifacts.consensus); render(outputs.debug, artifacts.debug); setTab('final'); log('Fluxo completo browser concluído.', 'ok');
+  const flow=flowWrap.flow; artifacts.flow=flow; artifacts.docling={ docling_seed_pdf: flow.docling_seed_pdf, docling_response: flow.docling_response }; artifacts.final=flow.final_result; artifacts.correction=flow.correction_document; artifacts.evidence=flow.evidence_document || flow.final_result?.documento_evidencias; artifacts.enrichment=flow.enrichment_document || flow.final_result?.documento_enriquecimento; artifacts.budget=flow.budget_stage; artifacts.compositions=flow.compositions_stage; artifacts.accuracy=flow.final_result?.analise_orcamentaria?.accuracy_report || flow.final_result?.meta?.accuracy_report || {}; artifacts.contract=flow.final_result?.analise_orcamentaria?.output_contract_validation || {}; artifacts.lovablecontract=flow.final_result?.analise_orcamentaria?.lovable_contract_reference || {}; artifacts.entityconf=flow.final_result?.analise_orcamentaria?.entity_confidence_report || {}; artifacts.reviews=flow.final_result?.documento_correcao?.auditoria_humana || {}; artifacts.coverage=flow.final_result?.analise_orcamentaria?.extraction_coverage_report || flow.final_result?.documento_evidencias?.extraction_coverage_report || {}; artifacts.baseconfig=flow.final_result?.analise_orcamentaria?.base_config_layering || {}; artifacts.reparse=flow.final_result?.meta?.performance?.selective_field_reparse_executor || {}; artifacts.consensus=flow.final_result?.meta?.performance?.candidate_profile_consensus_engine || {}; artifacts.debug=flow.final_result?.meta?.debug_overlay || {}; 
+  render(outputs.docling, artifacts.docling); render(outputs.final, artifacts.final); render(outputs.correction, artifacts.correction); render(outputs.evidence, artifacts.evidence); render(outputs.enrichment, artifacts.enrichment); render(outputs.budget, artifacts.budget); render(outputs.compositions, artifacts.compositions); render(outputs.accuracy, artifacts.accuracy); render(outputs.contract, artifacts.contract); render(outputs.lovablecontract, artifacts.lovablecontract); render(outputs.entityconf, artifacts.entityconf); render(outputs.reviews, artifacts.reviews); render(outputs.coverage, artifacts.coverage); render(outputs.baseconfig, artifacts.baseconfig); render(outputs.reparse, artifacts.reparse); render(outputs.consensus, artifacts.consensus); render(outputs.debug, artifacts.debug); setTab('final'); log('Fluxo completo browser concluído.', 'ok');
 }
 async function runGuarded(name, fn) { try { document.querySelectorAll('button').forEach(b=>b.disabled=true); log(`${name} iniciado.`); await fn(); } catch(e) { log(`${name} falhou: ${e?.message || e}`, 'err'); } finally { document.querySelectorAll('button').forEach(b=>b.disabled=false); } }
 $('applyFieldsBtn').onclick = () => { writePayload(readPayload()); log('Campos aplicados no payload.', 'ok'); };
@@ -753,7 +666,38 @@ $('runBtn').onclick = () => runGuarded('Fluxo completo browser', runFullFlow);
 $('resetBtn').onclick = () => { if(client) client.reset(); client=null; log('Worker resetado.', 'warn'); };
 $('copyCurrentBtn').onclick = async () => { const txt = outputs[currentTab].textContent || ''; await navigator.clipboard.writeText(txt); log('Aba copiada.', 'ok'); };
 $('downloadCurrentBtn').onclick = () => createDownload(`${currentTab}_${RELEASE}.json`, outputs[currentTab].textContent || '');
-writePayload(clonePayload()); setTab('preview'); log('HTML v61.0.35 carregado. Inclui Candidate Profile Consensus Engine, reparse seletivo, ownership, acurácia e debug overlay para Lovable.', 'ok');
+
+function downloadAllOutputsV55(){
+  const payloads = {
+    final: window.__lastFinalResult || readJsonFromPre('finalOut'),
+    correction: window.__lastCorrectionDocument || readJsonFromPre('correctionOut'),
+    evidence: window.__lastEvidenceDocument || readJsonFromPre('evidenceOut'),
+    enrichment: window.__lastEnrichmentDocument || readJsonFromPre('enrichmentOut'),
+    accuracy: readJsonFromPre('accuracyOut'),
+    contract: readJsonFromPre('contractOut'),
+    lovable_contract: readJsonFromPre('lovableContractOut'),
+    entity_confidence: readJsonFromPre('entityConfOut'),
+    reviews: readJsonFromPre('reviewsOut'),
+    coverage: readJsonFromPre('coverageOut'),
+    base_config_layering: readJsonFromPre('baseConfigOut'),
+    payload: readJsonFromPre('payloadOut')
+  };
+  for (const [name, data] of Object.entries(payloads)) {
+    if (!data) continue;
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name}_${RELEASE}.json`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  }
+}
+function readJsonFromPre(id){
+  try { const t = document.getElementById(id)?.textContent || ''; return t ? JSON.parse(t) : null; } catch(_e){ return null; }
+}
+document.getElementById('downloadAllBtn')?.addEventListener('click', downloadAllOutputsV55);
+
+writePayload(clonePayload()); setTab('preview'); log('HTML v61.0.59 carregado. Inclui docs/contratos Lovable, schemas, stage registry, outputs estáveis, cobertura/SICRO e base_config por overlay.', 'ok');
 </script>
 </body>
 </html>

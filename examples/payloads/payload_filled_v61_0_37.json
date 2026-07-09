@@ -1,0 +1,63 @@
+{
+  "version": "v61.0.39-deep-area-sweep-iterative-closure",
+  "base_id": "misto",
+  "document": {
+    "filename": "[6]-0015690782_Orcamento (3).pdf",
+    "page_count": 148,
+    "title": "Construção da casa do produtor em Sena Madureira/AC",
+    "obra_nome": "Construção da casa do produtor",
+    "obra_localizacao": "Sena Madureira/AC",
+    "orgao_nome": "DERACRE"
+  },
+  "ranges": {"budget": {"start": 2, "end": 4}, "compositions": {"start": 9, "end": 139}},
+  "seed_pages": {"budget": 2, "composition": 9},
+  "document_hints": {"families_detected": ["sinapi_like", "sicro", "proprio"], "custom_bank_ids": [], "recurring_noise_terms": ["DERACRE Página"]},
+  "tables": {
+    "budget": {
+      "header_rows_observed": 2,
+      "multiline_header": true,
+      "physical_column_count_expected": 10,
+      "logical_column_count_expected": 10,
+      "domain_column_count_expected": 10,
+      "table_parent_header": {"text": "ANEXO 1 - ORÇAMENTO SINTÉTICO", "role": "table_title", "action": "exclude_from_column_headers", "canonical": "budget_table_title"},
+      "observed_headers": [
+        {"text": "ITEM", "header_text": "ITEM", "canonical": "item_agregador", "type": "column", "first_row_text": "1.1.1", "sample_text": "1.1.1", "content_text": "1.1.1"},
+        {"text": "CÓDIGO", "header_text": "CÓDIGO", "canonical": "codigo", "type": "column", "first_row_text": "12345/001", "sample_text": "12345/001", "content_text": "12345/001"},
+        {"text": "FONTE", "header_text": "FONTE", "canonical": "fonte", "type": "column", "first_row_text": "SINAPI", "sample_text": "SINAPI", "content_text": "SINAPI"},
+        {"text": "ESPECIFICAÇÕES DOS SERVIÇOS", "header_text": "ESPECIFICAÇÕES DOS SERVIÇOS", "canonical": "descricao", "type": "column", "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO", "sample_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO", "content_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"},
+        {"text": "UND", "header_text": "UND", "canonical": "und", "type": "column", "first_row_text": "m²", "sample_text": "m²", "content_text": "m²"},
+        {"text": "QUANT.", "header_text": "QUANT.", "canonical": "quant", "type": "column", "first_row_text": "6,00", "sample_text": "6,00", "content_text": "6,00"},
+        {"text": "S/ B.D.I", "header_text": "S/ B.D.I", "canonical": "custo_unitario_sem_bdi", "type": "column", "group": "custo_unitario", "first_row_text": "521,39", "sample_text": "521,39", "content_text": "521,39"},
+        {"text": "C/ B.D.I", "header_text": "C/ B.D.I", "canonical": "custo_unitario_com_bdi", "type": "column", "group": "custo_unitario", "first_row_text": "634,16", "sample_text": "634,16", "content_text": "634,16"},
+        {"text": "CUSTO PARCIAL", "header_text": "CUSTO PARCIAL", "canonical": "custo_parcial", "type": "column", "first_row_text": "3.804,96", "sample_text": "3.804,96", "content_text": "3.804,96"},
+        {"text": "CUSTO TOTAL", "header_text": "CUSTO TOTAL", "canonical": "custo_total", "type": "column", "first_row_text": "52.365,69", "sample_text": "52.365,69", "content_text": "52.365,69"}
+      ],
+      "header_groups": [{"text": "CUSTO UNITÁRIO", "canonical": "custo_unitario", "role": "group_parent", "children": ["custo_unitario_sem_bdi", "custo_unitario_com_bdi"], "children_texts": ["S/ B.D.I", "C/ B.D.I"]}],
+      "non_column_context": ["Sena Madureira/AC", "Rodovia BR 364", "28/05/2025"],
+      "header_noise_terms": ["DERACRE Página"]
+    },
+    "composition": {
+      "header_rows_observed": 1,
+      "multiline_header": false,
+      "physical_column_count_expected": 9,
+      "logical_column_count_expected": 9,
+      "domain_column_count_expected": 8,
+      "table_parent_header": {"texts": ["Composições Analíticas com Preço Unitário", "Composições Principais"], "role": "table_title", "action": "exclude_from_column_headers", "canonical": "composition_table_title"},
+      "observed_headers": [
+        {"text": "1.1", "header_text": "1.1", "canonical": "controle_linha", "type": "control_column", "role": "control_column", "first_row_text": "Composição", "sample_text": "Composição", "content_text": "Composição"},
+        {"text": "Código", "header_text": "Código", "canonical": "codigo", "type": "column", "first_row_text": "12345/001", "sample_text": "12345/001", "content_text": "12345/001"},
+        {"text": "Banco", "header_text": "Banco", "canonical": "banco", "type": "column", "first_row_text": "SINAPI", "sample_text": "SINAPI", "content_text": "SINAPI"},
+        {"text": "Descrição", "header_text": "Descrição", "canonical": "descricao", "type": "column", "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO", "sample_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO", "content_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"},
+        {"text": "Tipo", "header_text": "Tipo", "canonical": "tipo", "type": "column", "role": "ignored_domain_column", "ignore_in_domain": true, "include_in_final_json": false, "first_row_text": "", "sample_text": "", "content_text": ""},
+        {"text": "Und", "header_text": "Und", "canonical": "und", "type": "column", "first_row_text": "%", "sample_text": "%", "content_text": "%"},
+        {"text": "Quant.", "header_text": "Quant.", "canonical": "quant", "type": "column", "first_row_text": "1,0000000", "sample_text": "1,0000000", "content_text": "1,0000000"},
+        {"text": "Valor Unit", "header_text": "Valor Unit", "canonical": "valor_unit", "type": "column", "first_row_text": "634,16", "sample_text": "634,16", "content_text": "634,16"},
+        {"text": "Total", "header_text": "Total", "canonical": "total", "type": "column", "first_row_text": "634,16", "sample_text": "634,16", "content_text": "634,16"}
+      ],
+      "control_column": {"canonical": "controle_linha", "semantic_label": "COLUNA DE CONTROLE", "observed_markers": ["Composição", "Composição Auxiliar", "Insumo"]},
+      "non_column_context": ["Bancos", "SINAPI - 04/2025 - Acre", "B.D.I.", "21,63%", "Encargos Sociais", "Não Desonerado"],
+      "header_noise_terms": ["DERACRE Página"]
+    }
+  },
+  "user_base_config": {}
+}

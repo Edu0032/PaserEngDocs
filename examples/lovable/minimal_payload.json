@@ -1,0 +1,38 @@
+{
+  "version": "v61.0.62-composition-locking-and-budget-ownership",
+  "document": {
+    "filename": "orcamento.pdf",
+    "page_count": 148,
+    "title": "Construção da casa do produtor em Sena Madureira/AC"
+  },
+  "ranges": {
+    "budget": {"start": 2, "end": 4},
+    "compositions": {"start": 9, "end": 139}
+  },
+  "docling_seed_pages": {"budget": 2, "composition": 9},
+  "tables": {
+    "budget": {
+      "observed_headers": [
+        {"text": "ITEM", "canonical": "item_agregador", "first_row_text": "1.1.1"},
+        {"text": "CÓDIGO", "canonical": "codigo", "first_row_text": "12345/001"},
+        {"text": "FONTE", "canonical": "fonte", "first_row_text": "SINAPI"},
+        {"text": "ESPECIFICAÇÕES DOS SERVIÇOS", "canonical": "descricao", "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"},
+        {"text": "UND", "canonical": "und", "first_row_text": "m²"},
+        {"text": "QUANT.", "canonical": "quant", "first_row_text": "6,00"},
+        {"text": "C/ B.D.I", "canonical": "custo_unitario_com_bdi", "first_row_text": "634,16"},
+        {"text": "CUSTO PARCIAL", "canonical": "custo_parcial", "first_row_text": "3.804,96"}
+      ]
+    },
+    "composition": {
+      "observed_headers": [
+        {"text": "Código", "canonical": "codigo", "first_row_text": "12345/001"},
+        {"text": "Banco", "canonical": "banco", "first_row_text": "SINAPI"},
+        {"text": "Descrição", "canonical": "descricao", "first_row_text": "PLACA DE OBRA EM CHAPA DE ACO GALVANIZADO"},
+        {"text": "Und", "canonical": "und", "first_row_text": "m²"},
+        {"text": "Quant.", "canonical": "quant", "first_row_text": "1,0000000"},
+        {"text": "Valor Unit", "canonical": "valor_unit", "first_row_text": "521,39"},
+        {"text": "Total", "canonical": "total", "first_row_text": "521,39"}
+      ]
+    }
+  }
+}

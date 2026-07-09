@@ -1,0 +1,67 @@
+{
+  "runtime_policy": {
+    "version": "v61.0.74-release-integrity-and-diff-scan-hardening",
+    "owner": "platform_admin_base_config",
+    "docling_execution_policy": {
+      "always_run": true,
+      "required_as_primary": true,
+      "fallback_role": "diagnostic_only",
+      "max_docling_attempts": 2,
+      "force_docling_only": false,
+      "allow_fallback": true
+    },
+    "geometry_normalizer": {
+      "enabled": true,
+      "mode": "guarded_lite",
+      "max_body_rows": 6,
+      "max_words": 500,
+      "only_if_needed": true,
+      "debug_raw_geometry": false,
+      "normalize_scope": "problem_regions_only",
+      "preserve_docling_geometry_by_default": true,
+      "revert_if_sample_validation_fails": true
+    },
+    "header_window_policy": {
+      "budget": {
+        "max_header_lines": 2,
+        "max_vertical_gap": 1.4,
+        "allow_multiline_header": true,
+        "stop_on_first_body_marker": true
+      },
+      "composition": {
+        "max_header_lines": 2,
+        "max_vertical_gap": 1.2,
+        "allow_multiline_header": true,
+        "stop_on_first_body_marker": true
+      }
+    },
+    "crop_policy": {
+      "budget": {
+        "mode": "line_window",
+        "lines_above": 1,
+        "lines_below": 4,
+        "min_vertical_padding": 6.0,
+        "horizontal_padding": 20.0,
+        "allow_group_completion_expansion": false,
+        "max_extra_lines": 0,
+        "only_if_missing_group_children": true
+      },
+      "composition": {
+        "mode": "line_window",
+        "lines_above": 1,
+        "lines_below": 4,
+        "min_vertical_padding": 6.0,
+        "horizontal_padding": 20.0,
+        "allow_group_completion_expansion": false,
+        "max_extra_lines": 0,
+        "only_if_missing_group_children": true
+      }
+    },
+    "targeted_recovery_policy": {
+      "prefer_math_and_principal_incomplete_targets": true,
+      "avoid_no_op_description_targets": true,
+      "max_pages_per_batch_default": 12
+    },
+    "payload_boundary": "Lovable payload must stay document-only; runtime/API/internal policies live here or in worker initialization."
+  }
+}

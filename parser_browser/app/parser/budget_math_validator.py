@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List
 from app.core.money import parse_ptbr_number
 from app.core.schemas import OrcamentoItem, OrcamentoSintetico
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 
 def _walk(nodes: Iterable[OrcamentoItem]):

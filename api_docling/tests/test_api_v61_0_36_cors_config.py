@@ -1,4 +1,8 @@
 import importlib
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _create_app(monkeypatch, *, key="secret"):
@@ -8,11 +12,23 @@ def _create_app(monkeypatch, *, key="secret"):
     monkeypatch.setenv("API_PDF_API_KEY_HEADER", "x-api-key")
     monkeypatch.setenv("DOCLING_TIMEOUT_SECONDS", "120")
     monkeypatch.setenv("API_PDF_DOCS_ENABLED", "true")
+    sys.path.insert(0, str(ROOT))
+    for name in list(sys.modules):
+        if name == "app" or name.startswith("app."):
+            del sys.modules[name]
     import app.config.settings as settings_mod
     import app.api as api_mod
     importlib.reload(settings_mod)
     importlib.reload(api_mod)
-    return api_mod.create_app()
+    created = api_mod.create_app()
+    try:
+        sys.path.remove(str(ROOT))
+    except ValueError:
+        pass
+    for name in list(sys.modules):
+        if name == "app" or name.startswith("app."):
+            del sys.modules[name]
+    return created
 
 
 def test_cors_preflight_allows_lovable_with_x_api_key(monkeypatch):

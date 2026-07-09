@@ -39,7 +39,7 @@ def looks_like_codigo(value: Any) -> bool:
     # numeric SINAPI/SICRO-like codes, including zero-prefixed and slash variants
     if re.fullmatch(r'\d{2,}(?:/\d{1,4})?', s):
         return True
-    # local/proprietary codes: COMP.JCO.3, CP-120, ANP 01, REF-S, etc.
+    # local/proprietary codes: COMP.EXEMPLO.1, CP-120, ABC 01, REF-S, etc.
     if re.search(r'\d', s) and re.fullmatch(r'[A-Za-zÁ-Úá-ú]{1,8}(?:[\s./_-]*[A-Za-z0-9Á-Úá-ú]+)+', s):
         return True
     return False

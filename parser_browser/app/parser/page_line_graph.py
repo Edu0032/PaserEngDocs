@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from app.parser.code_value_classifier import clean_text, norm_text, looks_like_code, looks_like_ptbr_decimal_or_money
 
-VERSION = "v61.0.35-candidate-profile-consensus-engine"
+VERSION = "v61.0.75-correction-output-contract-and-review-index"
 
 _BANK_WORDS = {"SINAPI", "SICRO", "SICRO2", "SICRO3", "DNIT", "PROPRIO", "PRÓPRIO", "ANP", "CAIXA"}
 _START_MARKERS = {"COMPOSICAO", "COMPOSIÇÃO", "INSUMO", "AUXILIAR"}

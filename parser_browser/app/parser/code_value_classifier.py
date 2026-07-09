@@ -30,8 +30,8 @@ def norm_text(value: Any) -> str:
 def looks_like_ptbr_decimal_or_money(value: Any) -> bool:
     """Return True only for clear pt-BR numeric values, not codes.
 
-    Codes may contain dots, slashes, hyphens and letters (CADM.01, COMP.JCO.3,
-    74209/001, CP - 120).  A dot alone is not enough to classify a token as a
+    Codes may contain dots, slashes, hyphens and letters (CADM.01, COMP.EXEMPLO.1,
+    12345/001, CP - 001).  A dot alone is not enough to classify a token as a
     value.  Clear values generally contain a comma decimal separator, or are in a
     confirmed numeric column handled by the caller.
     """

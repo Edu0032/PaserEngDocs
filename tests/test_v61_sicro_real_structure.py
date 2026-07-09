@@ -38,24 +38,24 @@ def _public_block():
 
 def test_sicro_sections_are_public_contract_and_not_sinapi_like():
     block = _public_block()
-    secoes = block['sicro']['secoes']
+    secoes = block['secoes']
     assert set(secoes) >= {'A', 'C'}
     first_equipment = secoes['A']['linhas'][0]
     assert first_equipment['equipamento'].startswith('Balança plataforma')
-    assert first_equipment['descricao'].startswith('Balança plataforma')
+    assert 'descricao' not in first_equipment
     assert first_equipment['custo_horario'] == '1,2680'
     assert first_equipment['custo_operacional']['operativa'] == '1,2680'
     assert 'composicoes_auxiliares' not in block and 'insumos' not in block
 
 
 def test_sicro_material_rows_do_not_merge_multiple_materials():
-    materials = _public_block()['sicro']['secoes']['C']['linhas']
+    materials = _public_block()['secoes']['C']['linhas']
     codes = [r['codigo'] for r in materials]
     assert codes[:5] == ['M0030', 'M0082', 'M0191', 'M0192', 'M0424']
     m0191 = next(r for r in materials if r['codigo'] == 'M0191')
     assert m0191['material'] == 'Brita 1'
     assert m0191['quantidade'] == '0,3675400'
-    assert m0191['custo_horario'] == '119,8576'
+    assert m0191['custo'] == '119,8576'
     assert 'M0192' not in m0191['material']
 
 
@@ -64,6 +64,6 @@ def test_sicro_page_span_and_no_runtime_fields_in_sections():
     assert block['pagina_inicio'] == 72
     assert block['pagina_fim'] == 73
     assert block['paginas'] == [72, 73]
-    text = str(block['sicro'])
+    text = str(block['secoes'])
     for forbidden in ('row_uid', 'tipo_status', 'block_uid', 'page_hint', 'row_index_in_block', 'numeric_source'):
         assert forbidden not in text
